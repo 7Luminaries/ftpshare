@@ -1,47 +1,68 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical">
+    android:background="@color/colorSurface">
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/ftp_client_rv"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:paddingStart="16dp"
+        android:paddingTop="12dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="120dp"
         tools:listitem="@layout/item_ftp_file" />
 
-    <ProgressBar
+    <com.google.android.material.progressindicator.CircularProgressIndicator
         android:id="@+id/ftp_client_pg"
-        style="@style/Widget.AppCompat.ProgressBar"
-        android:layout_width="80dp"
-        android:layout_height="80dp"
-        android:layout_centerInParent="true"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="center"
         android:visibility="visible"
         tools:visibility="visible" />
 
-    <LinearLayout
+    <com.google.android.material.card.MaterialCardView
         android:id="@+id/client_no_content_att"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_centerHorizontal="true"
-        android:layout_centerVertical="true"
-        android:gravity="center_horizontal"
-        android:orientation="vertical"
+        android:layout_gravity="center"
+        android:layout_marginStart="24dp"
+        android:layout_marginEnd="24dp"
         android:visibility="gone"
+        app:cardBackgroundColor="@color/colorSurface"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="1dp"
+        app:strokeColor="@color/colorOutlineVariant"
+        app:strokeWidth="1dp"
         tools:visibility="visible">
 
-        <ImageView
-            android:layout_width="50dp"
-            android:layout_height="50dp"
-            android:src="@drawable/icon_face_ops" />
-
-        <TextView
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="15dp"
-            android:text="@string/attention_client_content_blank"
-            android:textColor="@color/color_text_dark"
-            android:textSize="15sp" />
-    </LinearLayout>
-</RelativeLayout>
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:paddingStart="28dp"
+            android:paddingTop="28dp"
+            android:paddingEnd="28dp"
+            android:paddingBottom="28dp">
+
+            <ImageView
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:src="@drawable/icon_face_ops" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:gravity="center"
+                android:text="@string/attention_client_content_blank"
+                android:textColor="@color/colorOnSurfaceVariant"
+                android:textSize="14sp" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+</FrameLayout>
