@@ -2,32 +2,36 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="50dp">
+    android:layout_height="wrap_content"
+    android:background="?attr/selectableItemBackground"
+    android:minHeight="56dp">
 
     <ImageView
         android:id="@+id/item_folder_icon"
         android:layout_width="30dp"
         android:layout_height="30dp"
-        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true"
         android:layout_centerVertical="true"
-        android:layout_margin="10dp"
+        android:layout_marginStart="16dp"
         android:src="@drawable/icon_folder" />
 
     <TextView
         android:id="@+id/item_folder_name"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_centerVertical="true"
-        android:layout_marginRight="20dp"
-        android:layout_toRightOf="@+id/item_folder_icon"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="20dp"
+        android:layout_toEndOf="@+id/item_folder_icon"
         android:ellipsize="end"
         android:singleLine="true"
-        android:textSize="13sp"
+        android:textColor="@color/colorOnSurface"
+        android:textSize="14sp"
         tools:text="FolderName" />
 
-    <ImageView
+    <View
         android:layout_width="match_parent"
-        android:layout_height="1px"
+        android:layout_height="1dp"
         android:layout_alignParentBottom="true"
         android:background="@color/color_dividing_line" />
 </RelativeLayout>
