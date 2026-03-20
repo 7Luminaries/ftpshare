@@ -3,7 +3,6 @@ package com.github.ghmxr.ftpshare.adapers;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
-import android.graphics.Paint;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -41,7 +40,6 @@ public class FtpAddressesAdapter extends RecyclerView.Adapter<FtpAddressesAdapte
 
     @Override
     public void onBindViewHolder(@NonNull final ViewHolder viewHolder, int i) {
-        viewHolder.tv.getPaint().setFlags(Paint.UNDERLINE_TEXT_FLAG);
         viewHolder.tv.setText(ftpAddresses.get(viewHolder.getAdapterPosition()));
         viewHolder.itemView.setOnClickListener(new View.OnClickListener() {
             @Override
