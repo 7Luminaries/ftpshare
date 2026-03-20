@@ -56,6 +56,12 @@ class FtpClientManager private constructor() {
         return true
     }
 
+    fun persist() {
+        synchronized(list) {
+            flushListToSp()
+        }
+    }
+
     private fun updateIdOfBeans() {
         for (i in 0 until list.size) {
             list[i]._id = i

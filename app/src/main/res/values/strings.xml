@@ -72,6 +72,10 @@
     <string name="client_download_path">下载路径</string>
     <string name="client_download_select">下载前询问</string>
     <string name="client_download_select_att">下载前确认下载路径</string>
+    <string name="storage_directory_not_selected">未选择目录，请先授权一个目录</string>
+    <string name="storage_directory_migration_needed">旧版本目录配置需要重新选择</string>
+    <string name="storage_directory_permission_lost">目录权限已失效，请重新选择</string>
+    <string name="storage_directory_selected">已选择目录</string>
     <string name="client_passive">被动模式</string>
     <string name="client_passive_att">勾选以启用被动模式</string>
     <string name="client_connect_timeout">连接超时</string>

@@ -1,15 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">#008577</color>
-    <color name="colorPrimaryDark">#00574B</color>
-    <color name="colorAccent">#FF4081</color>
+    <color name="colorPrimary">#1565C0</color>
+    <color name="colorPrimaryDark">#0D47A1</color>
+    <color name="colorAccent">#00639A</color>
+    <color name="colorOnPrimary">#FFFFFF</color>
+    <color name="colorPrimaryContainer">#D4E3FF</color>
+    <color name="colorOnPrimaryContainer">#001C3A</color>
+    <color name="colorSecondary">#526070</color>
+    <color name="colorOnSecondary">#FFFFFF</color>
+    <color name="colorTertiary">#2D6A4F</color>
+    <color name="colorOnTertiary">#FFFFFF</color>
+    <color name="colorSurface">#F7F9FC</color>
+    <color name="colorOnSurface">#1A1C1E</color>
+    <color name="colorSurfaceVariant">#DDE3EA</color>
+    <color name="colorOnSurfaceVariant">#41474D</color>
+    <color name="colorOutline">#71787F</color>
+    <color name="colorOutlineVariant">#C1C7CE</color>
 
-    <color name="color_text_dark">#000000</color>
-    <color name="color_text_att">#008577</color>
-    <color name="color_dividing_line">#dddddd</color>
-    <color name="color_arrow_color">#999999</color>
-    <color name="color_bottom_nav_selected_color">#008577</color>
-    <color name="color_bottom_nav_normal_color">#666666</color>
-    <color name="color_dialog_background">#f9f9f9</color>
-    <color name="color_dialog_background2">#e7e7e7</color>
+    <color name="color_text_dark">@color/colorOnSurface</color>
+    <color name="color_text_att">@color/colorPrimary</color>
+    <color name="color_dividing_line">@color/colorOutlineVariant</color>
+    <color name="color_arrow_color">@color/colorOnSurfaceVariant</color>
+    <color name="color_bottom_nav_selected_color">@color/colorPrimary</color>
+    <color name="color_bottom_nav_normal_color">@color/colorOnSurfaceVariant</color>
+    <color name="color_dialog_background">@color/colorSurface</color>
+    <color name="color_dialog_background2">#E7EDF4</color>
 </resources>

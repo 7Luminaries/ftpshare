@@ -71,6 +71,10 @@
     <string name="client_download_path">downloading path</string>
     <string name="client_download_select">ask before downloading</string>
     <string name="client_download_select_att">confirm path before downloading</string>
+    <string name="storage_directory_not_selected">No directory selected. Choose a directory first.</string>
+    <string name="storage_directory_migration_needed">Legacy directory configuration detected. Choose a directory again.</string>
+    <string name="storage_directory_permission_lost">Directory permission was lost. Choose it again.</string>
+    <string name="storage_directory_selected">Directory selected</string>
     <string name="client_host_name_blank">blank host name</string>
     <string name="client_port_invalid">invalid port</string>
     <string name="client_delete_confirm_head">delete</string>

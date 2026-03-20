@@ -16,6 +16,7 @@ import com.github.ghmxr.ftpshare.R;
 import com.github.ghmxr.ftpshare.activities.EditAccountActivity;
 import com.github.ghmxr.ftpshare.data.AccountItem;
 import com.github.ghmxr.ftpshare.services.FtpService;
+import com.github.ghmxr.ftpshare.utils.StorageAccessUtil;
 
 import java.util.ArrayList;
 
@@ -39,6 +40,9 @@ public class AccountListAdapter extends BaseAdapter implements AdapterView.OnIte
 
     @Override
     public Object getItem(int position) {
+        if (position >= accountItems.size()) {
+            return null;
+        }
         return accountItems.get(position);
     }
 
@@ -64,13 +68,16 @@ public class AccountListAdapter extends BaseAdapter implements AdapterView.OnIte
         TextView tv_path = convertView.findViewById(R.id.text_path);
         View writable = convertView.findViewById(R.id.area_writable);
         tv_account.setText(accountItem.account);
-        tv_path.setText(accountItem.path);
+        tv_path.setText(StorageAccessUtil.getDirectorySummary(activity, accountItem.treeUri, accountItem.path));
         writable.setVisibility(accountItem.writable ? View.VISIBLE : View.GONE);
         return convertView;
     }
 
     @Override
     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+        if (position >= accountItems.size()) {
+            return;
+        }
         Intent intent = new Intent(activity, EditAccountActivity.class);
         intent.putExtra(EditAccountActivity.EXTRA_SERIALIZED_ACCOUNT_ITEM, accountItems.get(position));
         activity.startActivityForResult(intent, 1);

@@ -5,8 +5,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.NetworkRequest;
 import android.net.wifi.WifiManager;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 
@@ -17,107 +20,36 @@ import java.util.HashSet;
 public class NetworkStatusMonitor {
     private static final Handler handler = new Handler(Looper.getMainLooper());
     private static final HashSet<NetworkStatusCallback> callbacks = new HashSet<>();
+    private static boolean wifiConnected = false;
+    private static boolean ethernetConnected = false;
+    private static boolean cellularConnected = false;
+    private static boolean apEnabled = false;
     private static final BroadcastReceiver apReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             if ("android.net.wifi.WIFI_AP_STATE_CHANGED".equalsIgnoreCase(intent.getAction())) {
                 int state = intent.getIntExtra(WifiManager.EXTRA_WIFI_STATE, 0);
                 if (state == 11) {//AP关闭
-                    //Log.e("111","热点关闭");
-                    sendStatusChangedToCallbacks();
-                    sendToCallbacks(false, NetworkType.AP);
+                    updateApState(false);
                 }
                 if (state == 13) {//AP打开
-                    //Log.e("111","热点打开");
-                    sendStatusChangedToCallbacks();
-                    sendToCallbacks(true, NetworkType.AP);
+                    updateApState(true);
                 }
             }
         }
     };
-    //private static final @TargetApi(21) MyNetworkCallback myNetworkCallback=new MyNetworkCallback();
     private static ConnectivityManager connectivityManager;
-    private static final BroadcastReceiver networkReceiver = new BroadcastReceiver() {
-        private boolean wifi = false;
-        private boolean ethernet = false;
-        private boolean cell = false;
-
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            if (ConnectivityManager.CONNECTIVITY_ACTION.equalsIgnoreCase(intent.getAction())) {
-                sendStatusChangedToCallbacks();
-                if (connectivityManager == null) return;
-                NetworkInfo networkInfo = connectivityManager.getActiveNetworkInfo();
-                if (networkInfo == null) {
-                    if (wifi) {
-                        wifi = false;
-                        //Log.e("111","Wifi断开");
-                        sendToCallbacks(false, NetworkType.WIFI);
-
-                    }
-                    if (ethernet) {
-                        ethernet = false;
-                        //Log.e("111","有线网络断开");
-                        sendToCallbacks(false, NetworkType.ETHERNET);
-                    }
-                    if (cell) {
-                        cell = false;
-                        //Log.e("111","蜂窝网断开");
-                        sendToCallbacks(false, NetworkType.CELLULAR);
-                    }
-                    return;
-                }
-                if (networkInfo.getType() == ConnectivityManager.TYPE_ETHERNET) {
-                    ethernet = true;
-                    if (wifi) {
-                        wifi = false;
-                        sendToCallbacks(false, NetworkType.WIFI);
-                    }
-                    if (cell) {
-                        cell = false;
-                        sendToCallbacks(false, NetworkType.CELLULAR);
-                    }
-                    sendToCallbacks(true, NetworkType.ETHERNET);
-                }
-                if (networkInfo.getType() == ConnectivityManager.TYPE_WIFI) {
-                    wifi = true;
-                    if (ethernet) {
-                        ethernet = false;
-                        sendToCallbacks(false, NetworkType.ETHERNET);
-                    }
-                    if (cell) {
-                        cell = false;
-                        sendToCallbacks(false, NetworkType.CELLULAR);
-                    }
-                    //Log.e("111","Wifi连接");
-                    sendToCallbacks(true, NetworkType.WIFI);
-                }
-                if (networkInfo.getType() == ConnectivityManager.TYPE_MOBILE) {
-                    cell = true;
-                    if (wifi) {
-                        wifi = false;
-                        sendToCallbacks(false, NetworkType.WIFI);
-                    }
-                    if (ethernet) {
-                        ethernet = false;
-                        sendToCallbacks(false, NetworkType.ETHERNET);
-                    }
-                    //Log.e("111","蜂窝网连接");
-                    sendToCallbacks(true, NetworkType.CELLULAR);
-                }
-            }
-        }
-    };
+    private static ConnectivityManager.NetworkCallback networkCallback;
+    private static boolean initialized = false;
 
     public static void init(@NonNull Context context) {
-        connectivityManager = (ConnectivityManager) context.getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
-        context.getApplicationContext().registerReceiver(apReceiver, new IntentFilter("android.net.wifi.WIFI_AP_STATE_CHANGED"));
-        /*if(Build.VERSION.SDK_INT>=24){
-            connectivityManager.registerDefaultNetworkCallback(myNetworkCallback);
-        }else{
-            context.getApplicationContext().registerReceiver(networkReceiver,new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
-        }*/
-        context.getApplicationContext().registerReceiver(networkReceiver, new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
+        if (initialized) return;
+        Context appContext = context.getApplicationContext();
+        connectivityManager = (ConnectivityManager) appContext.getSystemService(Context.CONNECTIVITY_SERVICE);
+        registerReceiverCompat(appContext, apReceiver, new IntentFilter("android.net.wifi.WIFI_AP_STATE_CHANGED"));
+        registerNetworkCallback();
+        refreshActiveNetworkState();
+        initialized = true;
     }
 
     public static void addNetworkStatusCallback(@NonNull NetworkStatusCallback callback) {
@@ -149,78 +81,92 @@ public class NetworkStatusMonitor {
         });
     }
 
-    /*@TargetApi(21)
-    private static class MyNetworkCallback extends ConnectivityManager.NetworkCallback{
+    private static void registerNetworkCallback() {
+        if (connectivityManager == null || networkCallback != null) return;
+        networkCallback = new ConnectivityManager.NetworkCallback() {
+            @Override
+            public void onAvailable(@NonNull Network network) {
+                refreshActiveNetworkState();
+            }
 
-        private boolean wifi=false;
-        private boolean ethernet=false;
-        private boolean cell=false;
+            @Override
+            public void onLost(@NonNull Network network) {
+                refreshActiveNetworkState();
+            }
 
-        @Override
-        public void onAvailable(Network network) {
-            super.onAvailable(network);
-            sendStatusChangedToCallbacks();
-            if(connectivityManager==null)return;
-            NetworkCapabilities networkCapabilities=connectivityManager.getNetworkCapabilities(network);
-            if(networkCapabilities==null)return;
-            if(networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)){
-                wifi=true;
-                //Log.e("111","WiFI已连接");
-                sendToCallbacks(true,NetworkType.WIFI);
+            @Override
+            public void onCapabilitiesChanged(@NonNull Network network, @NonNull NetworkCapabilities networkCapabilities) {
+                refreshActiveNetworkState();
             }
-            if(networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)){
-                ethernet=true;
-                //Log.e("111","有线网已连接");
-                sendToCallbacks(true,NetworkType.ETHERNET);
+        };
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                connectivityManager.registerDefaultNetworkCallback(networkCallback);
+            } else {
+                NetworkRequest request = new NetworkRequest.Builder()
+                        .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                        .build();
+                connectivityManager.registerNetworkCallback(request, networkCallback);
             }
-            if(networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)){
-                cell=true;
-                //Log.e("111","蜂窝网已连接");
-                sendToCallbacks(true,NetworkType.CELLULAR);
-            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
+    }
 
-        @Override
-        public void onLost(Network network) {
-            super.onLost(network);
-            sendStatusChangedToCallbacks();
-            if(connectivityManager==null)return;
-            NetworkCapabilities networkCapabilities=connectivityManager.getNetworkCapabilities(network);
-            if(networkCapabilities==null){
-                if(wifi){
-                    wifi=false;
-                    //Log.e("111","WiFI已断开");
-                    sendToCallbacks(false,NetworkType.WIFI);
+    private static void refreshActiveNetworkState() {
+        sendStatusChangedToCallbacks();
+        boolean wifi = false;
+        boolean ethernet = false;
+        boolean cellular = false;
+        try {
+            if (connectivityManager != null) {
+                Network activeNetwork = connectivityManager.getActiveNetwork();
+                NetworkCapabilities capabilities = activeNetwork == null ? null : connectivityManager.getNetworkCapabilities(activeNetwork);
+                if (capabilities != null) {
+                    wifi = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI);
+                    ethernet = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET);
+                    cellular = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR);
                 }
-                if(ethernet){
-                    ethernet=false;
-                    //Log.e("111","有线已断开");
-                    sendToCallbacks(false,NetworkType.ETHERNET);
-                }
-                if(cell){
-                    cell=false;
-                    //Log.e("111","蜂窝网已断开");
-                    sendToCallbacks(false,NetworkType.CELLULAR);
-                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        updateTransportState(NetworkType.WIFI, wifi);
+        updateTransportState(NetworkType.ETHERNET, ethernet);
+        updateTransportState(NetworkType.CELLULAR, cellular);
+    }
+
+    private static void updateApState(boolean enabled) {
+        if (apEnabled == enabled) {
+            return;
+        }
+        apEnabled = enabled;
+        sendStatusChangedToCallbacks();
+        sendToCallbacks(enabled, NetworkType.AP);
+    }
+
+    private static void updateTransportState(@NonNull NetworkType networkType, boolean connected) {
+        boolean changed;
+        switch (networkType) {
+            case WIFI:
+                changed = wifiConnected != connected;
+                wifiConnected = connected;
+                break;
+            case ETHERNET:
+                changed = ethernetConnected != connected;
+                ethernetConnected = connected;
+                break;
+            case CELLULAR:
+                changed = cellularConnected != connected;
+                cellularConnected = connected;
+                break;
+            default:
                 return;
-            }
-            if(!networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)&&wifi){
-                wifi=false;
-                //Log.e("111","WiFI已断开");
-                sendToCallbacks(false,NetworkType.WIFI);
-            }
-            if(!networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)&&ethernet){
-                ethernet=false;
-                //Log.e("111","有线网已断开");
-                sendToCallbacks(false,NetworkType.ETHERNET);
-            }
-            if(!networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)&&cell){
-                cell=false;
-                //Log.e("111","蜂窝网已断开");
-                sendToCallbacks(false,NetworkType.ETHERNET);
-            }
         }
-    }*/
+        if (changed) {
+            sendToCallbacks(connected, networkType);
+        }
+    }
 
     private static void sendStatusChangedToCallbacks() {
         handler.post(new Runnable() {
@@ -231,6 +177,14 @@ public class NetworkStatusMonitor {
                 }
             }
         });
+    }
+
+    private static void registerReceiverCompat(@NonNull Context context, @NonNull BroadcastReceiver receiver, @NonNull IntentFilter filter) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            context.registerReceiver(receiver, filter);
+        }
     }
 
     public enum NetworkType {

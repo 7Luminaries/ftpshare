@@ -6,7 +6,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.CheckBox;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatDelegate;
@@ -18,6 +17,7 @@ import com.github.ghmxr.ftpshare.services.FtpService;
 import com.github.ghmxr.ftpshare.ui.DisconnectSelectionDialog;
 import com.github.ghmxr.ftpshare.ui.RadioSelectionDialog;
 import com.github.ghmxr.ftpshare.utils.CommonUtils;
+import com.google.android.material.checkbox.MaterialCheckBox;
 
 @Deprecated
 public class SettingActivity extends BaseActivity implements View.OnClickListener {
@@ -26,7 +26,7 @@ public class SettingActivity extends BaseActivity implements View.OnClickListene
     private final SharedPreferences settings = CommonUtils.getSettingSharedPreferences(MyApplication.getGlobalBaseContext());
     private final SharedPreferences.Editor editor = settings.edit();
     private int resultCode = RESULT_CANCELED;
-    private CheckBox cb_auto_start;
+    private MaterialCheckBox cb_auto_start;
     private TextView tv_disconnect, tv_night_mode, tv_language;
 
     @Override

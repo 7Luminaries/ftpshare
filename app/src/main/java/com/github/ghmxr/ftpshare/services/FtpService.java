@@ -1,6 +1,5 @@
 package com.github.ghmxr.ftpshare.services;
 
-import android.Manifest;
 import android.app.Activity;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -10,32 +9,32 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.ServiceInfo;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
-import android.net.Uri;
 import android.os.Build;
 import android.os.CountDownTimer;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 import android.os.PowerManager;
-import android.view.View;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
-import androidx.core.content.PermissionChecker;
 
 import com.github.ghmxr.ftpshare.Constants;
 import com.github.ghmxr.ftpshare.MyApplication;
 import com.github.ghmxr.ftpshare.R;
 import com.github.ghmxr.ftpshare.activities.MainActivity;
 import com.github.ghmxr.ftpshare.data.AccountItem;
+import com.github.ghmxr.ftpshare.ftpserver.saf.TreeUriFileSystemFactory;
 import com.github.ghmxr.ftpshare.fragments.MainFragment;
 import com.github.ghmxr.ftpshare.utils.CommonUtils;
 import com.github.ghmxr.ftpshare.utils.MySQLiteOpenHelper;
 import com.github.ghmxr.ftpshare.utils.NetworkStatusMonitor;
+import com.github.ghmxr.ftpshare.utils.StorageAccessUtil;
 import com.google.android.material.snackbar.Snackbar;
 
 import org.apache.ftpserver.ConnectionConfig;
@@ -77,9 +76,14 @@ public class FtpService extends Service implements NetworkStatusMonitor.NetworkS
             return false;
         }
         if (ftpService == null) {
-            if (Build.VERSION.SDK_INT >= 26)
-                context.startForegroundService(new Intent(context, FtpService.class));
-            else context.startService(new Intent(context, FtpService.class));
+            try {
+                if (Build.VERSION.SDK_INT >= 26)
+                    context.startForegroundService(new Intent(context, FtpService.class));
+                else context.startService(new Intent(context, FtpService.class));
+            } catch (Exception e) {
+                e.printStackTrace();
+                return false;
+            }
         }
         return true;
     }
@@ -92,29 +96,10 @@ public class FtpService extends Service implements NetworkStatusMonitor.NetworkS
      * @return true - 检查正常  -false 账户错误或者没有权限
      */
     private static boolean beforeStartCheck(@NonNull Context context) {
-        if (Build.VERSION.SDK_INT >= 23 && PermissionChecker.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PermissionChecker.PERMISSION_GRANTED) {
-            if (context instanceof Activity) {
-                final Activity activity = (Activity) context;
-                Snackbar snackbar = Snackbar.make(activity.findViewById(android.R.id.content), activity.getResources().getString(R.string.permission_write_external), Snackbar.LENGTH_SHORT);
-                snackbar.setAction(activity.getResources().getString(R.string.snackbar_action_goto), new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        Intent appdetail = new Intent();
-                        appdetail.setAction(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-                        appdetail.setData(Uri.fromParts("package", activity.getApplication().getPackageName(), null));
-                        activity.startActivity(appdetail);
-                    }
-                });
-                snackbar.show();
-                activity.requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 0);
-            } else {
-                Toast.makeText(context, context.getResources().getString(R.string.permission_write_external), Toast.LENGTH_SHORT).show();
-            }
-            return false;
-        }
-        if (!context.getSharedPreferences(Constants.PreferenceConsts.FILE_NAME, Context.MODE_PRIVATE)
-                .getBoolean(Constants.PreferenceConsts.ANONYMOUS_MODE, Constants.PreferenceConsts.ANONYMOUS_MODE_DEFAULT)
-                && FtpService.getUserAccountList(context).size() == 0) {
+        SharedPreferences settings = context.getSharedPreferences(Constants.PreferenceConsts.FILE_NAME, Context.MODE_PRIVATE);
+        boolean isAnonymousMode = settings.getBoolean(Constants.PreferenceConsts.ANONYMOUS_MODE, Constants.PreferenceConsts.ANONYMOUS_MODE_DEFAULT);
+        List<AccountItem> accountItems = FtpService.getUserAccountList(context);
+        if (!isAnonymousMode && accountItems.size() == 0) {
             if (context instanceof Activity) {
                 final Activity activity = (Activity) context;
                 Snackbar.make(activity.findViewById(android.R.id.content), activity.getResources().getString(R.string.attention_no_user_account), Snackbar.LENGTH_SHORT).show();
@@ -123,6 +108,25 @@ public class FtpService extends Service implements NetworkStatusMonitor.NetworkS
             }
             context.sendBroadcast(new Intent(MainFragment.ACTION_FLASH_ACCOUNT_ITEM));
             return false;
+        }
+        if (isAnonymousMode) {
+            String issue = getDirectoryIssue(context,
+                    settings.getString(Constants.PreferenceConsts.ANONYMOUS_MODE_TREE_URI, Constants.PreferenceConsts.ANONYMOUS_MODE_TREE_URI_DEFAULT),
+                    settings.getString(Constants.PreferenceConsts.ANONYMOUS_MODE_PATH, Constants.PreferenceConsts.ANONYMOUS_MODE_PATH_DEFAULT));
+            if (issue != null) {
+                showStartCheckMessage(context, issue);
+                context.sendBroadcast(new Intent(MainFragment.ACTION_FLASH_ACCOUNT_ITEM));
+                return false;
+            }
+        } else {
+            for (AccountItem accountItem : accountItems) {
+                String issue = getDirectoryIssue(context, accountItem.treeUri, accountItem.path);
+                if (issue != null) {
+                    showStartCheckMessage(context, accountItem.account + ": " + issue);
+                    context.sendBroadcast(new Intent(MainFragment.ACTION_FLASH_ACCOUNT_ITEM));
+                    return false;
+                }
+            }
         }
         return true;
     }
@@ -138,7 +142,8 @@ public class FtpService extends Service implements NetworkStatusMonitor.NetworkS
                     item.id = cursor.getInt(cursor.getColumnIndex(Constants.SQLConsts.COLUMN_ID));
                     item.account = cursor.getString(cursor.getColumnIndex(Constants.SQLConsts.COLUMN_ACCOUNT_NAME));
                     item.password = cursor.getString(cursor.getColumnIndex(Constants.SQLConsts.COLUMN_PASSWORD));
-                    item.path = cursor.getString(cursor.getColumnIndex(Constants.SQLConsts.COLUMN_PATH));
+                    item.path = getOptionalString(cursor, Constants.SQLConsts.COLUMN_PATH);
+                    item.treeUri = getOptionalString(cursor, Constants.SQLConsts.COLUMN_TREE_URI);
                     item.writable = cursor.getInt(cursor.getColumnIndex(Constants.SQLConsts.COLUMN_WRITABLE)) == 1;
                     list.add(item);
                 } catch (Exception e) {
@@ -357,13 +362,18 @@ public class FtpService extends Service implements NetworkStatusMonitor.NetworkS
     private void startFTPService(boolean isAnonymousMode, List<AccountItem> list) throws Exception {
         FtpServerFactory factory = new FtpServerFactory();
         SharedPreferences settings = getSharedPreferences(Constants.PreferenceConsts.FILE_NAME, Context.MODE_PRIVATE);
+        factory.setFileSystem(new TreeUriFileSystemFactory(getApplicationContext()));
         List<Authority> authorities_writable = new ArrayList<>();
         authorities_writable.add(new WritePermission());
         if (isAnonymousMode) {
             BaseUser baseUser = new BaseUser();
             baseUser.setName(Constants.FTPConsts.NAME_ANONYMOUS);
             baseUser.setPassword("");
-            baseUser.setHomeDirectory(settings.getString(Constants.PreferenceConsts.ANONYMOUS_MODE_PATH, Constants.PreferenceConsts.ANONYMOUS_MODE_PATH_DEFAULT));
+            String treeUri = settings.getString(Constants.PreferenceConsts.ANONYMOUS_MODE_TREE_URI, Constants.PreferenceConsts.ANONYMOUS_MODE_TREE_URI_DEFAULT);
+            if (treeUri == null || treeUri.trim().length() == 0) {
+                throw new IllegalStateException(getResources().getString(R.string.storage_directory_not_selected));
+            }
+            baseUser.setHomeDirectory(treeUri);
             if (settings.getBoolean(Constants.PreferenceConsts.ANONYMOUS_MODE_WRITABLE, Constants.PreferenceConsts.ANONYMOUS_MODE_WRITABLE_DEFAULT)) {
                 baseUser.setAuthorities(authorities_writable);
             }
@@ -373,7 +383,10 @@ public class FtpService extends Service implements NetworkStatusMonitor.NetworkS
                 BaseUser baseUser = new BaseUser();
                 baseUser.setName(item.account);
                 baseUser.setPassword(item.password);
-                baseUser.setHomeDirectory(item.path);
+                if (item.treeUri == null || item.treeUri.trim().length() == 0) {
+                    throw new IllegalStateException(item.account + ": " + getResources().getString(R.string.storage_directory_not_selected));
+                }
+                baseUser.setHomeDirectory(item.treeUri);
                 if (item.writable) baseUser.setAuthorities(authorities_writable);
                 factory.getUserManager().save(baseUser);
             }
@@ -398,6 +411,38 @@ public class FtpService extends Service implements NetworkStatusMonitor.NetworkS
         }
     }
 
+    @Nullable
+    private static String getDirectoryIssue(@NonNull Context context, @Nullable String treeUri, @Nullable String legacyPath) {
+        if (treeUri != null && treeUri.trim().length() > 0) {
+            return StorageAccessUtil.canAccessTree(context, treeUri)
+                    ? null
+                    : context.getResources().getString(R.string.storage_directory_permission_lost);
+        }
+        if (legacyPath != null && legacyPath.trim().length() > 0) {
+            return context.getResources().getString(R.string.storage_directory_migration_needed);
+        }
+        return context.getResources().getString(R.string.storage_directory_not_selected);
+    }
+
+    private static void showStartCheckMessage(@NonNull Context context, @NonNull String message) {
+        if (context instanceof Activity) {
+            Activity activity = (Activity) context;
+            Snackbar.make(activity.findViewById(android.R.id.content), message, Snackbar.LENGTH_SHORT).show();
+        } else {
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @Nullable
+    private static String getOptionalString(@NonNull Cursor cursor, @NonNull String columnName) {
+        int columnIndex = cursor.getColumnIndex(columnName);
+        if (columnIndex < 0) {
+            return "";
+        }
+        String value = cursor.getString(columnIndex);
+        return value == null ? "" : value;
+    }
+
     private void makeThisForeground(String title, String content) {
         try {
             NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
@@ -413,12 +458,23 @@ public class FtpService extends Service implements NetworkStatusMonitor.NetworkS
             builder.setContentText(content);
             Intent stopIntent = new Intent(this, StopServiceReceiver.class);
             stopIntent.setAction(ACTION_STOP_SERVICE);
-            builder.addAction(R.drawable.ic_stop, getResources().getString(R.string.word_stop), PendingIntent.getBroadcast(this, 0, stopIntent, PendingIntent.FLAG_UPDATE_CURRENT));
-            builder.setContentIntent(PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), PendingIntent.FLAG_UPDATE_CURRENT));
-            startForeground(1, builder.build());
+            builder.addAction(R.drawable.ic_stop, getResources().getString(R.string.word_stop), PendingIntent.getBroadcast(this, 0, stopIntent, getPendingIntentFlags()));
+            builder.setContentIntent(PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), getPendingIntentFlags()));
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(1, builder.build(), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+            } else {
+                startForeground(1, builder.build());
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private int getPendingIntentFlags() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            return PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE;
+        }
+        return PendingIntent.FLAG_UPDATE_CURRENT;
     }
 
     private void processMessage(Message msg) {
@@ -553,6 +609,11 @@ public class FtpService extends Service implements NetworkStatusMonitor.NetworkS
             }
         };
         countDownTimer.start();
+    }
+
+    @Override
+    public void onTimeout(int startId, int fgsType) {
+        stopSelf();
     }
 
     public interface OnFTPServiceStatusChangedListener {

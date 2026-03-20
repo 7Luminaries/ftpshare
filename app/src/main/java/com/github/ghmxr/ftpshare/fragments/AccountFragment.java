@@ -9,7 +9,6 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.CheckBox;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -26,6 +25,7 @@ import com.github.ghmxr.ftpshare.adapers.AccountListAdapter;
 import com.github.ghmxr.ftpshare.services.FtpService;
 import com.github.ghmxr.ftpshare.ui.DialogOfFolderSelector;
 import com.github.ghmxr.ftpshare.utils.CommonUtils;
+import com.google.android.material.checkbox.MaterialCheckBox;
 
 @Deprecated
 public class AccountFragment extends Fragment implements View.OnClickListener {
@@ -36,7 +36,7 @@ public class AccountFragment extends Fragment implements View.OnClickListener {
     private ListView accountListView;
     private ViewGroup viewGroup_no_account;
     private TextView anonymous_path;
-    private CheckBox writable_cb;
+    private MaterialCheckBox writable_cb;
 
     @Nullable
     @Override

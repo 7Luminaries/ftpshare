@@ -5,11 +5,11 @@ import android.text.format.Formatter
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.CheckBox
 import android.widget.ImageView
 import android.widget.TextView
 import com.github.ghmxr.ftpshare.R
 import com.github.ghmxr.ftpshare.utils.CommonUtils
+import com.google.android.material.checkbox.MaterialCheckBox
 import org.apache.commons.net.ftp.FTPFile
 
 class FtpFileListAdapter(val context: Context, list: Array<FTPFile>?, private val c: AdapterCallback?) : androidx.recyclerview.widget.RecyclerView.Adapter<ViewHolderFtpFile>() {
@@ -159,6 +159,6 @@ class ViewHolderFtpFile(itemView: View) : androidx.recyclerview.widget.RecyclerV
     val tvName: TextView = itemView.findViewById(R.id.item_ftp_file_name)
     val tvDate: TextView = itemView.findViewById(R.id.item_ftp_file_info)
     val tvSize: TextView = itemView.findViewById(R.id.item_ftp_file_info2)
-    val cb: CheckBox = itemView.findViewById(R.id.item_ftp_file_cb)
+    val cb: MaterialCheckBox = itemView.findViewById(R.id.item_ftp_file_cb)
     val more: ImageView = itemView.findViewById(R.id.item_ftp_file_more)
 }

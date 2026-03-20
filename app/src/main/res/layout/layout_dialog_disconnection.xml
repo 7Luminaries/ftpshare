@@ -1,29 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical">
 
-    <RadioButton
+    <com.google.android.material.radiobutton.MaterialRadioButton
         android:id="@+id/dialog_disconnection_none"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_margin="10dp"
-        android:text="@string/word_none" />
+        android:text="@string/word_none"
+        app:useMaterialThemeColors="true" />
 
-    <RadioButton
+    <com.google.android.material.radiobutton.MaterialRadioButton
         android:id="@+id/dialog_disconnection_wifi"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_margin="10dp"
-        android:text="@string/setting_disconnect_wifi_disconnected" />
+        android:text="@string/setting_disconnect_wifi_disconnected"
+        app:useMaterialThemeColors="true" />
 
-    <RadioButton
+    <com.google.android.material.radiobutton.MaterialRadioButton
         android:id="@+id/dialog_disconnection_ap"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_margin="10dp"
-        android:text="@string/setting_disconnect_ap_disconnected" />
+        android:text="@string/setting_disconnect_ap_disconnected"
+        app:useMaterialThemeColors="true" />
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -32,25 +36,33 @@
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
-        <RadioButton
+        <com.google.android.material.radiobutton.MaterialRadioButton
             android:id="@+id/dialog_disconnect_time"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="2"
-            android:text="@string/setting_disconnect_time" />
+            android:text="@string/setting_disconnect_time"
+            app:useMaterialThemeColors="true" />
 
-        <EditText
-            android:id="@+id/dialog_disconnect_time_edit"
+        <com.google.android.material.textfield.TextInputLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginLeft="10dp"
             android:layout_marginRight="10dp"
             android:layout_weight="1"
-            android:digits="0123456789"
-            android:hint="@string/hint_disconnect_time"
-            android:inputType="number"
-            android:maxLength="9"
-            android:singleLine="true" />
+            app:boxBackgroundMode="outline"
+            app:hintEnabled="false">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/dialog_disconnect_time_edit"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:digits="0123456789"
+                android:hint="@string/hint_disconnect_time"
+                android:inputType="number"
+                android:maxLength="9"
+                android:singleLine="true" />
+        </com.google.android.material.textfield.TextInputLayout>
 
         <TextView
             android:layout_width="0dp"

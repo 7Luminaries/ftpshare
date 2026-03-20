@@ -41,7 +41,9 @@ data class ClientBean constructor(var _id: Int, var nickName: String, var userNa
         return field
     }*/
 
-    var downloadPath = StorageUtil.getMainStoragePath() + "/Download/FTPShare/$nickName"
+    var legacyDownloadPath = StorageUtil.getMainStoragePath() + "/Download/FTPShare/$nickName"
+
+    var downloadTreeUri: String = ""
 
     var downloadConfirm = true
 
@@ -57,11 +59,12 @@ data class ClientBean constructor(var _id: Int, var nickName: String, var userNa
     constructor(jsonObject: JSONObject) : this(jsonObject.optInt("_id"), jsonObject.optString("nickName"),
             jsonObject.optString("userName"), jsonObject.optString("password"), jsonObject.optString("host"),
             jsonObject.optInt("port")) {
-        downloadPath = jsonObject.optString("downloadPath")
-        downloadConfirm = jsonObject.optBoolean("downloadConfirm")
-        encode = jsonObject.optString("encode")
-        passiveMode = jsonObject.optBoolean("passiveMode")
-        connectTimeout = jsonObject.optInt("connectTimeout")
+        legacyDownloadPath = jsonObject.optString("downloadPath", legacyDownloadPath)
+        downloadTreeUri = jsonObject.optString("downloadTreeUri", "")
+        downloadConfirm = jsonObject.optBoolean("downloadConfirm", true)
+        encode = jsonObject.optString("encode", Constants.Charset.CHAR_UTF)
+        passiveMode = jsonObject.optBoolean("passiveMode", false)
+        connectTimeout = jsonObject.optInt("connectTimeout", 10)
     }
 
     fun connect(callback: ((Boolean, Exception?) -> Unit)?) {
@@ -172,7 +175,8 @@ data class ClientBean constructor(var _id: Int, var nickName: String, var userNa
                 put("port", port)
                 put("nickName", nickName)
                 put("_id", _id)
-                put("downloadPath", downloadPath)
+                put("downloadPath", legacyDownloadPath)
+                put("downloadTreeUri", downloadTreeUri)
                 put("downloadConfirm", downloadConfirm)
                 put("encode", encode)
                 put("passiveMode", passiveMode)

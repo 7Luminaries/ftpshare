@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:gravity="start"
@@ -16,20 +17,22 @@
         android:textColor="@color/color_text_att"
         android:textSize="14sp" />
 
-    <RadioButton
+    <com.google.android.material.radiobutton.MaterialRadioButton
         android:id="@+id/charset_selection_utf"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginLeft="15dp"
         android:layout_marginTop="5dp"
         android:layout_marginBottom="5dp"
-        android:text="@string/item_charset_utf" />
+        android:text="@string/item_charset_utf"
+        app:useMaterialThemeColors="true" />
 
-    <RadioButton
+    <com.google.android.material.radiobutton.MaterialRadioButton
         android:id="@+id/charset_selection_gbk"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginLeft="15dp"
         android:layout_marginBottom="30dp"
-        android:text="@string/item_charset_gbk" />
+        android:text="@string/item_charset_gbk"
+        app:useMaterialThemeColors="true" />
 </LinearLayout>

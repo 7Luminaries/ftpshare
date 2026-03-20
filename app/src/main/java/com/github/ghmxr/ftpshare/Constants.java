@@ -2,17 +2,16 @@ package com.github.ghmxr.ftpshare;
 
 import androidx.appcompat.app.AppCompatDelegate;
 
-import com.github.ghmxr.ftpshare.utils.StorageUtil;
-
 public class Constants {
     public static class SQLConsts {
         public static final String SQL_USERS_FILENAME = "ftp_accounts.db";
-        public static final int SQL_VERSION = 1;
+        public static final int SQL_VERSION = 2;
         public static final String TABLE_NAME = "ftp_account_table";
         public static final String COLUMN_ID = "_id";
         public static final String COLUMN_ACCOUNT_NAME = "name";
         public static final String COLUMN_PASSWORD = "password";
         public static final String COLUMN_PATH = "path";
+        public static final String COLUMN_TREE_URI = "tree_uri";
         public static final String COLUMN_WRITABLE = "writable";
     }
 
@@ -31,7 +30,9 @@ public class Constants {
          * this stands for a string value
          */
         public static final String ANONYMOUS_MODE_PATH = "anonymous_mode_path";
-        public static final String ANONYMOUS_MODE_PATH_DEFAULT = StorageUtil.getMainStoragePath();
+        public static final String ANONYMOUS_MODE_PATH_DEFAULT = "";
+        public static final String ANONYMOUS_MODE_TREE_URI = "anonymous_mode_tree_uri";
+        public static final String ANONYMOUS_MODE_TREE_URI_DEFAULT = "";
         /**
          * this stands for a boolean value
          */
@@ -87,6 +88,8 @@ public class Constants {
          */
         public static final String START_AFTER_BOOT = "start_after_boot";
         public static final boolean START_AFTER_BOOT_DEFAULT = false;
+        public static final String NOTIFICATION_PERMISSION_REQUESTED = "notification_permission_requested";
+        public static final boolean NOTIFICATION_PERMISSION_REQUESTED_DEFAULT = false;
     }
 
     public static class Charset {

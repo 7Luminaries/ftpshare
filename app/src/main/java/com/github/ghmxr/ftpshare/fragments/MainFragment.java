@@ -18,7 +18,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.AlphaAnimation;
 import android.view.animation.Animation;
-import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.RadioButton;
@@ -39,6 +38,8 @@ import com.github.ghmxr.ftpshare.services.FtpService;
 import com.github.ghmxr.ftpshare.ui.FtpAddressesDialog;
 import com.github.ghmxr.ftpshare.utils.CommonUtils;
 import com.github.ghmxr.ftpshare.utils.NetworkStatusMonitor;
+import com.google.android.material.checkbox.MaterialCheckBox;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.snackbar.Snackbar;
 
 public class MainFragment extends Fragment implements View.OnClickListener, FtpService.OnFTPServiceStatusChangedListener,
@@ -50,8 +51,9 @@ public class MainFragment extends Fragment implements View.OnClickListener, FtpS
     ViewGroup viewGroup_main, viewGroup_port, viewGroup_charset, viewGroup_wakelock, viewGroup_battery, viewGroup_more, viewGroup_addresses;
     CompoundButton switchCompat;
     TextView tv_main, tv_port, tv_charset, tv_login_mode;
-    CheckBox cb_wakelock;
+    MaterialCheckBox cb_wakelock;
     ScrollView scrollView;
+    private Context flashReceiverContext;
     private final BroadcastReceiver flashItemReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -74,7 +76,11 @@ public class MainFragment extends Fragment implements View.OnClickListener, FtpS
         FtpService.addOnFtpServiceStatusChangedListener(this);
         NetworkStatusMonitor.addNetworkStatusCallback(this);
         try {
-            getContext().registerReceiver(flashItemReceiver, new IntentFilter(ACTION_FLASH_ACCOUNT_ITEM));
+            Context context = getContext();
+            if (context != null) {
+                flashReceiverContext = context.getApplicationContext();
+                registerReceiverCompat(flashReceiverContext, flashItemReceiver, new IntentFilter(ACTION_FLASH_ACCOUNT_ITEM));
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -157,7 +163,7 @@ public class MainFragment extends Fragment implements View.OnClickListener, FtpS
                 edit.setSingleLine(true);
                 edit.setHint(getResources().getString(R.string.item_port_hint));
                 edit.setText(String.valueOf(settings.getInt(Constants.PreferenceConsts.PORT_NUMBER, Constants.PreferenceConsts.PORT_NUMBER_DEFAULT)));
-                final AlertDialog dialog = new AlertDialog.Builder(getActivity())
+                final AlertDialog dialog = new MaterialAlertDialogBuilder(getActivity())
                         .setTitle(getResources().getString(R.string.item_port))
                         .setView(dialogView)
                         .setPositiveButton(getResources().getString(R.string.dialog_button_confirm), null)
@@ -200,7 +206,7 @@ public class MainFragment extends Fragment implements View.OnClickListener, FtpS
                     CommonUtils.showSnackBarOfFtpServiceIsRunning(getActivity());
                     return;
                 }
-                final AlertDialog dialog = new AlertDialog.Builder(getActivity())
+                final AlertDialog dialog = new MaterialAlertDialogBuilder(getActivity())
                         .setTitle(getResources().getString(R.string.item_charset))
                         .setView(R.layout.layout_dialog_charset)
                         .show();
@@ -311,7 +317,7 @@ public class MainFragment extends Fragment implements View.OnClickListener, FtpS
         edit.setSingleLine(true);
         edit.setHint(getResources().getString(R.string.item_max_num_hint));
         edit.setText(String.valueOf(settings.getInt(Constants.PreferenceConsts.PORT_NUMBER, Constants.PreferenceConsts.PORT_NUMBER_DEFAULT)));
-        final AlertDialog dialog = new AlertDialog.Builder(getActivity())
+        final AlertDialog dialog = new MaterialAlertDialogBuilder(getActivity())
                 .setTitle(getResources().getString(titleRes))
                 .setView(dialogView)
                 .setPositiveButton(getResources().getString(R.string.dialog_button_confirm), null)
@@ -371,10 +377,13 @@ public class MainFragment extends Fragment implements View.OnClickListener, FtpS
         FtpService.removeOnFtpServiceStatusChangedListener(this);
         NetworkStatusMonitor.removeNetworkStatusCallback(this);
         try {
-            getContext().unregisterReceiver(flashItemReceiver);
+            if (flashReceiverContext != null) {
+                flashReceiverContext.unregisterReceiver(flashItemReceiver);
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
+        flashReceiverContext = null;
     }
 
     @Override
@@ -436,6 +445,14 @@ public class MainFragment extends Fragment implements View.OnClickListener, FtpS
             }
         } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+
+    private void registerReceiverCompat(@NonNull Context context, @NonNull BroadcastReceiver receiver, @NonNull IntentFilter filter) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            context.registerReceiver(receiver, filter);
         }
     }
 

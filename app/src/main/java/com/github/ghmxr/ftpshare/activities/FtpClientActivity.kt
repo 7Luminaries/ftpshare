@@ -18,6 +18,8 @@ import com.github.ghmxr.ftpshare.data.ClientBean
 import com.github.ghmxr.ftpshare.ftpclient.FtpClientManager
 import com.github.ghmxr.ftpshare.ftpclient.FtpClientUtil
 import com.github.ghmxr.ftpshare.utils.CommonUtils
+import com.github.ghmxr.ftpshare.utils.StorageAccessUtil
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import org.apache.commons.net.ftp.FTPClient
 import org.apache.commons.net.ftp.FTPFile
 import java.io.InputStream
@@ -30,6 +32,9 @@ class FtpClientActivity : BaseActivity() {
     companion object {
         @JvmStatic
         val EXTRA_UPLOAD_URIS = "extra_upload_uris"
+
+        private const val REQUEST_PICK_UPLOAD_FILE = 0
+        private const val REQUEST_PICK_DOWNLOAD_TREE = 1
     }
 
     private var client: FTPClient? = null
@@ -112,7 +117,7 @@ class FtpClientActivity : BaseActivity() {
                             FtpClientUtil.createFolder(client!!, getFullPath(), s) {
                                 it?.let {
                                     if (isFinishing) return@let
-                                    AlertDialog.Builder(this@FtpClientActivity)
+                                    MaterialAlertDialogBuilder(this@FtpClientActivity)
                                             .setTitle(resources.getString(R.string.word_error))
                                             .setMessage(resources.getString(R.string.dialog_new_folder_error).format(s, it.toString()))
                                             .setPositiveButton(resources.getString(R.string.dialog_button_confirm)) { _, _ -> }
@@ -132,7 +137,7 @@ class FtpClientActivity : BaseActivity() {
                 b.append(deleteList[i].name)
                 b.append("\n\n")
             }
-            AlertDialog.Builder(this).setTitle(resources.getString(R.string.dialog_delete_head))
+            MaterialAlertDialogBuilder(this).setTitle(resources.getString(R.string.dialog_delete_head))
                     .setMessage(resources.getString(R.string.dialog_delete_message).format(b.toString()))
                     .setPositiveButton(resources.getString(R.string.dialog_button_confirm)) { _, _ ->
                     }
@@ -144,7 +149,7 @@ class FtpClientActivity : BaseActivity() {
                             setProgressVisibility(true)
                             FtpClientUtil.deleteFTPFiles(client!!, getFullPath(), deleteList.toTypedArray()) {
                                 if (it.isNotEmpty()) {
-                                    AlertDialog.Builder(this@FtpClientActivity)
+                                    MaterialAlertDialogBuilder(this@FtpClientActivity)
                                             .setTitle(resources.getString(R.string.word_error))
                                             .setMessage(resources.getString(R.string.dialog_delete_message2).format(it))
                                             .setPositiveButton(resources.getString(R.string.dialog_button_confirm)) { _, _ -> }
@@ -180,7 +185,7 @@ class FtpClientActivity : BaseActivity() {
                 Intent(Intent.ACTION_GET_CONTENT).apply {
                     type = "*/*"
                     addCategory(Intent.CATEGORY_OPENABLE)
-                    startActivityForResult(this, 0)
+                    startActivityForResult(this, REQUEST_PICK_UPLOAD_FILE)
                 }
             }
         }
@@ -203,7 +208,7 @@ class FtpClientActivity : BaseActivity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == 0 && resultCode == RESULT_OK) {
+        if (requestCode == REQUEST_PICK_UPLOAD_FILE && resultCode == RESULT_OK) {
             data?.data?.let {
                 uploadFiles(ArrayList<InputStream>().apply {
                     contentResolver.openInputStream(it)?.let {
@@ -216,18 +221,18 @@ class FtpClientActivity : BaseActivity() {
                 })
             }
         }
-        if (requestCode == 1 && resultCode == RESULT_OK) {
-            data?.getStringExtra(FolderSelectorActivity.EXTRA_SELECTED_PATH)?.let { path ->
-                selectedDownloadFtpFiles?.let { files ->
-                    FtpClientUtil.obtainAndStartDownloadFtpFilesTask(this@FtpClientActivity, client!!,
-                            if (pathFolders.size > 0) getFullPath() else "", files, path) {
-                        if (it.isNullOrBlank()) {
-                            adapter?.isMultiSelectMode = false
-                            setMenuItemsVisibility(false)
-                        }
-                    }
+        if (requestCode == REQUEST_PICK_DOWNLOAD_TREE && resultCode == RESULT_OK) {
+            data?.data?.let { treeUri ->
+                try {
+                    StorageAccessUtil.persistTreePermission(this, treeUri, data.flags)
+                } catch (e: SecurityException) {
+                    Toast.makeText(this, resources.getString(R.string.storage_directory_permission_lost), Toast.LENGTH_SHORT).show()
+                    return
                 }
-
+                bean?.downloadTreeUri = treeUri.toString()
+                bean?.legacyDownloadPath = ""
+                FtpClientManager.instance.persist()
+                startSelectedDownload(treeUri.toString())
             }
         }
     }
@@ -245,24 +250,36 @@ class FtpClientActivity : BaseActivity() {
 
     private var selectedDownloadFtpFiles: Array<FTPFile>? = null
     private fun downloadSelectedFiles(files: Array<FTPFile>) {
+        if (files.isEmpty()) {
+            return
+        }
         selectedDownloadFtpFiles = files
         if (bean?.downloadConfirm == true) {
-            /*val dialog = DialogOfFolderSelector(this@FtpClientActivity, bean!!.downloadPath)
-            dialog.setOnFolderSelectorDialogConfirmedListener { path ->
-
-            }
-            dialog.show()*/
-            bean?.let {
-                Intent(this, FolderSelectorActivity::class.java).apply {
-                    putExtra(FolderSelectorActivity.EXTRA_CURRENT_PATH, it.downloadPath)
-                    startActivityForResult(this, 1)
-                }
-            }
-
+            openDownloadTreePicker(bean?.downloadTreeUri)
         } else {
-            FtpClientUtil.obtainAndStartDownloadFtpFilesTask(this@FtpClientActivity, client!!,
-                    if (pathFolders.size > 0) getFullPath() else "", files, bean?.downloadPath
-                    ?: "") {
+            val treeUri = bean?.downloadTreeUri.orEmpty()
+            if (treeUri.isBlank()) {
+                Toast.makeText(this, resources.getString(R.string.storage_directory_not_selected), Toast.LENGTH_SHORT).show()
+                openDownloadTreePicker(null)
+                return
+            }
+            startSelectedDownload(treeUri)
+        }
+    }
+
+    private fun openDownloadTreePicker(currentTreeUri: String?) {
+        startActivityForResult(StorageAccessUtil.createOpenDocumentTreeIntent(currentTreeUri), REQUEST_PICK_DOWNLOAD_TREE)
+    }
+
+    private fun startSelectedDownload(destinationTreeUri: String) {
+        selectedDownloadFtpFiles?.let { files ->
+            FtpClientUtil.obtainAndStartDownloadFtpFilesTask(
+                this@FtpClientActivity,
+                client!!,
+                if (pathFolders.size > 0) getFullPath() else "",
+                files,
+                destinationTreeUri
+            ) {
                 if (it.isNullOrBlank()) {
                     adapter?.isMultiSelectMode = false
                     setMenuItemsVisibility(false)
@@ -331,7 +348,7 @@ class FtpClientActivity : BaseActivity() {
                                             if (b) {
                                                 refreshList()
                                             } else {
-                                                AlertDialog.Builder(this@FtpClientActivity)
+                                                MaterialAlertDialogBuilder(this@FtpClientActivity)
                                                         .setTitle(resources.getString(R.string.word_error))
                                                         .setMessage(resources.getString(R.string.dialog_rename_error2) + (if ((e?.toString()
                                                                         ?: "").isNotEmpty()) ":" else ""))
@@ -346,7 +363,7 @@ class FtpClientActivity : BaseActivity() {
                     }
 
                     contentView.findViewById<View>(R.id.popup_delete).setOnClickListener {
-                        AlertDialog.Builder(this@FtpClientActivity)
+                        MaterialAlertDialogBuilder(this@FtpClientActivity)
                                 .setTitle(resources.getString(R.string.dialog_delete_head))
                                 .setMessage(resources.getString(R.string.dialog_delete_message).format(" ${f?.name ?: ""}"))
                                 .setPositiveButton(resources.getString(R.string.dialog_button_confirm)) { _, _ -> }
@@ -357,7 +374,7 @@ class FtpClientActivity : BaseActivity() {
                                         setProgressVisibility(true)
                                         FtpClientUtil.deleteFTPFiles(client!!, getFullPath(), Array(1) { f!! }) {
                                             if (it.isNotEmpty()) {
-                                                AlertDialog.Builder(this@FtpClientActivity)
+                                                MaterialAlertDialogBuilder(this@FtpClientActivity)
                                                         .setTitle(resources.getString(R.string.word_error))
                                                         .setMessage(resources.getString(R.string.dialog_delete_message2).format(it))
                                                         .setPositiveButton(resources.getString(R.string.dialog_button_confirm)) { _, _ -> }
@@ -474,7 +491,7 @@ class FtpClientActivity : BaseActivity() {
         blankView?.visibility = View.GONE
     }
 
-    private fun createAlertDialogBuilder(title: String, s: String, h: String) = AlertDialog.Builder(this).apply {
+    private fun createAlertDialogBuilder(title: String, s: String, h: String) = MaterialAlertDialogBuilder(this).apply {
         setTitle(title)
         this.setView(LayoutInflater.from(this@FtpClientActivity).inflate(R.layout.layout_with_edittext, null).apply {
             this.findViewById<EditText>(R.id.dialog_edittext).setText(s)

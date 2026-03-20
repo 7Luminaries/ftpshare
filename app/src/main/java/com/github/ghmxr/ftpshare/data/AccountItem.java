@@ -2,15 +2,14 @@ package com.github.ghmxr.ftpshare.data;
 
 import androidx.annotation.NonNull;
 
-import com.github.ghmxr.ftpshare.utils.StorageUtil;
-
 import java.io.Serializable;
 
 public class AccountItem implements Serializable {
     public long id = -1;
     public String account = "";
     public String password = "";
-    public String path = StorageUtil.getMainStoragePath();
+    public String path = "";
+    public String treeUri = "";
     public boolean writable = false;
 
     @Override
@@ -21,6 +20,7 @@ public class AccountItem implements Serializable {
                 ", account='" + account + '\'' +
                 ", password='" + password + '\'' +
                 ", path='" + path + '\'' +
+                ", treeUri='" + treeUri + '\'' +
                 ", writable=" + writable +
                 '}';
     }

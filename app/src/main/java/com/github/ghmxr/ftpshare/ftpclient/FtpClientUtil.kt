@@ -5,9 +5,12 @@ import android.os.Looper
 import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.documentfile.provider.DocumentFile
 import com.github.ghmxr.ftpshare.MyApplication
 import com.github.ghmxr.ftpshare.R
 import com.github.ghmxr.ftpshare.ui.ProgressDialog
+import com.github.ghmxr.ftpshare.utils.StorageAccessUtil
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import org.apache.commons.net.ftp.FTPClient
 import org.apache.commons.net.ftp.FTPFile
 import org.apache.commons.net.ftp.FTPReply
@@ -32,7 +35,7 @@ object FtpClientUtil {
 
     fun obtainAndStartDownloadFtpFilesTask(
             context: Context, client: FTPClient, parentPath: String, ftpFiles: Array<FTPFile>,
-            destinationPath: String, callback: ((String?) -> Unit)?,
+            destinationTreeUri: String, callback: ((String?) -> Unit)?,
     ): DownloadFtpFilesTask? {
         if (Looper.myLooper() != Looper.getMainLooper()) {
             Log.e("FtpClientUtil", "没有在主线程调用下载逻辑obtainAndStartDownloadFtpFilesTask")
@@ -67,7 +70,7 @@ object FtpClientUtil {
                 if (errorInfo.isEmpty()) {
                     Toast.makeText(context, context.resources.getString(R.string.dialog_download_complete), Toast.LENGTH_SHORT).show()
                 } else {
-                    AlertDialog.Builder(context)
+                    MaterialAlertDialogBuilder(context)
                             .setTitle(context.resources.getString(R.string.dialog_download_error_head2))
                             .setMessage(context.resources.getString(R.string.dialog_download_error_message).format(errorInfo))
                             .setPositiveButton(context.resources.getString(R.string.dialog_button_confirm)) { _, _ -> }
@@ -78,14 +81,14 @@ object FtpClientUtil {
 
             override fun onError(e: Exception) {
                 dialog.cancel()
-                AlertDialog.Builder(context).setTitle(context.resources.getString(R.string.dialog_download_error_head))
+                MaterialAlertDialogBuilder(context).setTitle(context.resources.getString(R.string.dialog_download_error_head))
                         .setMessage(String.format(context.resources.getString(R.string.dialog_download_error_message), e.toString()))
                         .setPositiveButton(context.resources.getString(R.string.dialog_button_confirm)) { dialog, which -> }
                         .show()
             }
         }
         dialog.show()
-        thread = DownloadFtpFilesTask(client, parentPath, ftpFiles, destinationPath, c).apply { start() }
+        thread = DownloadFtpFilesTask(context.applicationContext, client, parentPath, ftpFiles, destinationTreeUri, c).apply { start() }
         return thread
     }
 
@@ -123,7 +126,7 @@ object FtpClientUtil {
                 if (errorInfo.isEmpty()) {
                     Toast.makeText(context, context.resources.getString(R.string.dialog_upload_complete), Toast.LENGTH_SHORT).show()
                 } else {
-                    AlertDialog.Builder(context)
+                    MaterialAlertDialogBuilder(context)
                             .setTitle(context.resources.getString(R.string.dialog_download_error_head2))
                             .setMessage(context.resources.getString(R.string.dialog_upload_error_message).format(errorInfo))
                             .setPositiveButton(context.resources.getString(R.string.dialog_button_confirm)) { _, _ -> }
@@ -134,7 +137,7 @@ object FtpClientUtil {
 
             override fun onError(e: Exception) {
                 dialog.cancel()
-                AlertDialog.Builder(context).setTitle(context.resources.getString(R.string.dialog_download_error_head))
+                MaterialAlertDialogBuilder(context).setTitle(context.resources.getString(R.string.dialog_download_error_head))
                         .setMessage(String.format(context.resources.getString(R.string.dialog_upload_error_message), e.toString()))
                         .setPositiveButton(context.resources.getString(R.string.dialog_button_confirm)) { dialog, which -> }
                         .show()
@@ -249,7 +252,14 @@ object FtpClientUtil {
         return total
     }
 
-    open class DownloadFtpFilesTask(val client: FTPClient, val parentPath: String, val ftpFiles: Array<FTPFile>, val destinationPath: String, val c: DownloadTaskCallback?) : Thread() {
+    open class DownloadFtpFilesTask(
+        val context: Context,
+        val client: FTPClient,
+        val parentPath: String,
+        val ftpFiles: Array<FTPFile>,
+        val destinationTreeUri: String,
+        val c: DownloadTaskCallback?
+    ) : Thread() {
         open var flag = false
         private var total = 0L
         private var speed = 0L
@@ -257,7 +267,8 @@ object FtpClientUtil {
         private var lastProgress = 0L
         private var lastSpeedTime = 0L
         val eb = StringBuilder()
-        var currentWriting: File? = null
+        var currentWriting: DocumentFile? = null
+        private var rootDirectory: DocumentFile? = null
 
         interface DownloadTaskCallback {
             fun onFileProgress(resPath: String, dstPath: String)
@@ -270,13 +281,18 @@ object FtpClientUtil {
         override fun run() {
             super.run()
             try {
+                val resolvedRoot = StorageAccessUtil.getTreeDocument(context, destinationTreeUri)
+                if (resolvedRoot == null || !resolvedRoot.canWrite()) {
+                    throw IllegalStateException(context.getString(R.string.storage_directory_permission_lost))
+                }
+                rootDirectory = resolvedRoot
                 for (f in ftpFiles) {
                     total += getFileOrFolderSize(parentPath, client, f)
                 }
                 if (flag) return
                 for (f in ftpFiles) {
                     try {
-                        downloadFileOrFolder(parentPath, f, "")
+                        downloadFileOrFolder(parentPath, f, rootDirectory!!)
                     } catch (e: Exception) {
                         e.printStackTrace()
                         eb.append(e.toString())
@@ -297,49 +313,46 @@ object FtpClientUtil {
             }
         }
 
-        private fun downloadFileOrFolder(parentPath: String, f: FTPFile, relativePath: String) {
+        private fun downloadFileOrFolder(parentPath: String, f: FTPFile, destinationDirectory: DocumentFile) {
             if (flag) return
             if (f.isDirectory) {
-                //downloadFileOrFolder(f)
+                val nextDirectory = StorageAccessUtil.ensureChildDirectory(destinationDirectory, f.name)
+                    ?: throw IOException("${destinationDirectory.uri} -> ${f.name}")
                 val listFiles = client.listFiles(parentPath + "/${f.name}")
                 listFiles?.let {
                     for (ff in listFiles) {
-                        downloadFileOrFolder(parentPath + "/${f.name}", ff, "${relativePath}/${f.name}")
+                        downloadFileOrFolder(parentPath + "/${f.name}", ff, nextDirectory)
                     }
                 }
             } else if (f.isFile) {
                 var retrieveFileStream: InputStream? = null
+                var outputStream: BufferedOutputStream? = null
                 try {
+                    currentWriting = null
                     client.setFileType(FTPClient.BINARY_FILE_TYPE)
-                    //client.enterLocalPassiveMode()
                     client.changeWorkingDirectory(parentPath)
                     retrieveFileStream = client.retrieveFileStream(f.name)
-                    val desFolderPath = destinationPath + relativePath
-                    val desPath = "${desFolderPath}/${f.name}"
+                    val writeDocument = StorageAccessUtil.ensureFile(destinationDirectory, f.name)
+                        ?: throw IOException("${destinationDirectory.uri} -> ${f.name}")
                     MyApplication.handler.post {
-                        c?.onFileProgress("${parentPath}/${f.name}", desPath)
+                        c?.onFileProgress("${parentPath}/${f.name}", writeDocument.name ?: f.name)
                     }
-                    try {
-                        val folder = File(desFolderPath)
-                        if (!folder.exists()) {
-                            folder.mkdirs()
-                        }
-                    } catch (e: Exception) {
-
-                    }
-                    val writeFile = File(desPath)
-                    currentWriting = writeFile
-                    val o = BufferedOutputStream(FileOutputStream(writeFile))
+                    currentWriting = writeDocument
+                    outputStream = BufferedOutputStream(
+                        context.contentResolver.openOutputStream(writeDocument.uri, "wt")
+                            ?: throw IOException(writeDocument.uri.toString())
+                    )
                     val br = ByteArray(1024)
                     var read: Int
-                    while (retrieveFileStream.read(br).also { read = it } != -1) {
+                    while (retrieveFileStream!!.read(br).also { read = it } != -1) {
                         if (flag) {
-                            o.flush()
-                            o.close()
-                            writeFile.delete()
+                            outputStream.flush()
+                            outputStream.close()
+                            writeDocument.delete()
+                            currentWriting = null
                             break
                         }
-                        o.write(br, 0, read)
+                        outputStream.write(br, 0, read)
                         speed += read
                         progress += read
                         if (progress - lastProgress > 100 * 1024L) {
@@ -359,8 +372,9 @@ object FtpClientUtil {
                         }
                     }
                     if (!flag) {
-                        o.flush()
-                        o.close()
+                        outputStream.flush()
+                        outputStream.close()
+                        currentWriting = null
                     }
                 } catch (e: Exception) {
                     try {
@@ -374,6 +388,11 @@ object FtpClientUtil {
                     eb.append("\n\n")
                     e.printStackTrace()
                 } finally {
+                    try {
+                        outputStream?.close()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
                     try {
                         if (retrieveFileStream != null) {
                             retrieveFileStream.close()

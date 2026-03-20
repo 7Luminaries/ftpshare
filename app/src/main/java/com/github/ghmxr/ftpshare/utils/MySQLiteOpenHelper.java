@@ -30,6 +30,7 @@ public class MySQLiteOpenHelper extends SQLiteOpenHelper {
         contentValues.put(Constants.SQLConsts.COLUMN_ACCOUNT_NAME, item.account);
         contentValues.put(Constants.SQLConsts.COLUMN_PASSWORD, item.password);
         contentValues.put(Constants.SQLConsts.COLUMN_PATH, item.path);
+        contentValues.put(Constants.SQLConsts.COLUMN_TREE_URI, item.treeUri);
         contentValues.put(Constants.SQLConsts.COLUMN_WRITABLE, item.writable ? 1 : 0);
         long result;
         if (id_update == null)
@@ -57,11 +58,16 @@ public class MySQLiteOpenHelper extends SQLiteOpenHelper {
                 + Constants.SQLConsts.COLUMN_ACCOUNT_NAME + " text,"
                 + Constants.SQLConsts.COLUMN_PASSWORD + " text,"
                 + Constants.SQLConsts.COLUMN_PATH + " text,"
+                + Constants.SQLConsts.COLUMN_TREE_URI + " text not null default '',"
                 + Constants.SQLConsts.COLUMN_WRITABLE + " integer not null default 0);");
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        if (oldVersion < 2) {
+            db.execSQL("alter table " + Constants.SQLConsts.TABLE_NAME
+                    + " add column " + Constants.SQLConsts.COLUMN_TREE_URI + " text not null default ''");
+        }
     }
 
 }

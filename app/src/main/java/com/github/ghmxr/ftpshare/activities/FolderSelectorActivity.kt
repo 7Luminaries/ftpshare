@@ -13,6 +13,7 @@ import androidx.appcompat.app.AlertDialog
 import com.github.ghmxr.ftpshare.R
 import com.github.ghmxr.ftpshare.utils.CommonUtils
 import com.github.ghmxr.ftpshare.utils.StorageUtil
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import java.io.File
 import java.util.*
 
@@ -121,7 +122,7 @@ open class FolderSelectorActivity : BaseActivity() {
                 }
             }
             R.id.action_mkdir -> {
-                AlertDialog.Builder(this)
+                MaterialAlertDialogBuilder(this)
                         .setTitle(resources.getString(R.string.word_new_folder))
                         .setView(LayoutInflater.from(this).inflate(R.layout.layout_with_edittext, null))
                         .setPositiveButton(resources.getString(R.string.dialog_button_confirm), null)

@@ -1,11 +1,7 @@
 package com.github.ghmxr.ftpshare.activities
 
-import android.Manifest
 import android.content.Intent
-import android.net.Uri
-import android.os.Build
 import android.os.Bundle
-import android.provider.Settings
 import android.text.InputType
 import android.text.method.DigitsKeyListener
 import android.text.method.PasswordTransformationMethod
@@ -15,14 +11,19 @@ import android.view.MenuItem
 import android.view.View
 import android.widget.*
 import androidx.appcompat.app.AlertDialog
-import androidx.core.content.PermissionChecker
 import com.github.ghmxr.ftpshare.Constants
 import com.github.ghmxr.ftpshare.R
 import com.github.ghmxr.ftpshare.data.ClientBean
 import com.github.ghmxr.ftpshare.ftpclient.FtpClientManager
+import com.github.ghmxr.ftpshare.utils.StorageAccessUtil
+import com.google.android.material.checkbox.MaterialCheckBox
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 
 abstract class ClientInfoActivity : BaseActivity() {
+    companion object {
+        private const val REQUEST_DOWNLOAD_TREE = 100
+    }
 
     private val bean: ClientBean by lazy { getClientBean() }
 
@@ -115,19 +116,7 @@ abstract class ClientInfoActivity : BaseActivity() {
         }
 
         findViewById<View>(R.id.client_download_path_area).setOnClickListener {
-            /*val dialog = DialogOfFolderSelector(this, bean.downloadPath)
-            dialog.setOnFolderSelectorDialogConfirmedListener {
-                bean.downloadPath = it
-                refreshAllViews()
-            }
-            dialog.show()*/
-            if (checkAndRequestWritingPermission()) {
-                return@setOnClickListener
-            }
-            Intent(this, FolderSelectorActivity::class.java).apply {
-                putExtra(FolderSelectorActivity.EXTRA_CURRENT_PATH, bean.downloadPath)
-                startActivityForResult(this, 0)
-            }
+            openDownloadDirectoryPicker()
         }
 
         findViewById<View>(R.id.client_download_select_area).setOnClickListener {
@@ -136,7 +125,7 @@ abstract class ClientInfoActivity : BaseActivity() {
         }
 
         findViewById<View>(R.id.client_encode_area).setOnClickListener {
-            AlertDialog.Builder(this)
+            MaterialAlertDialogBuilder(this)
                     .setTitle(resources.getString(R.string.item_charset))
                     .setView(R.layout.layout_dialog_charset)
                     .show().apply {
@@ -181,27 +170,6 @@ abstract class ClientInfoActivity : BaseActivity() {
         }
 
         refreshAllViews()
-
-        checkAndRequestWritingPermission()
-
-    }
-
-    private fun checkAndRequestWritingPermission(): Boolean {
-        var b = false
-        if (PermissionChecker.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PermissionChecker.PERMISSION_GRANTED && Build.VERSION.SDK_INT >= 23) {
-            b = true
-            //requestPermissions(Array(1){Manifest.permission.WRITE_EXTERNAL_STORAGE},0)
-            val snackbar: Snackbar = Snackbar.make(findViewById<View>(android.R.id.content), getResources().getString(R.string.permission_write_external), Snackbar.LENGTH_SHORT)
-            snackbar.setAction(getResources().getString(R.string.snackbar_action_goto), View.OnClickListener {
-                val appdetail = Intent()
-                appdetail.action = Settings.ACTION_APPLICATION_DETAILS_SETTINGS
-                appdetail.data = Uri.fromParts("package", getApplication().getPackageName(), null)
-                startActivity(appdetail)
-            })
-            snackbar.show()
-            requestPermissions(arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE), 0)
-        }
-        return b
     }
 
     abstract fun getClientBean(): ClientBean
@@ -213,17 +181,19 @@ abstract class ClientInfoActivity : BaseActivity() {
         return super.onOptionsItemSelected(item)
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-    }
-
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == 0 && resultCode == RESULT_OK) {
-            data?.getStringExtra(FolderSelectorActivity.EXTRA_SELECTED_PATH)?.let {
-                bean.downloadPath = it
-                refreshAllViews()
+        if (requestCode == REQUEST_DOWNLOAD_TREE && resultCode == RESULT_OK) {
+            val treeUri = data?.data ?: return
+            try {
+                StorageAccessUtil.persistTreePermission(this, treeUri, data.flags)
+            } catch (e: SecurityException) {
+                Snackbar.make(findViewById(android.R.id.content), resources.getString(R.string.storage_directory_permission_lost), Snackbar.LENGTH_SHORT).show()
+                return
             }
+            bean.downloadTreeUri = treeUri.toString()
+            bean.legacyDownloadPath = ""
+            refreshAllViews()
         }
     }
 
@@ -243,11 +213,16 @@ abstract class ClientInfoActivity : BaseActivity() {
             findViewById<TextView>(R.id.client_password_value).text = builder.toString()
         }
         findViewById<TextView>(R.id.client_nickname_value).text = bean.nickName
-        findViewById<TextView>(R.id.client_download_path_value).text = bean.downloadPath
-        findViewById<CheckBox>(R.id.client_download_select_cb).isChecked = bean.downloadConfirm
+        findViewById<TextView>(R.id.client_download_path_value).text =
+            StorageAccessUtil.getDirectorySummary(this, bean.downloadTreeUri, bean.legacyDownloadPath)
+        findViewById<MaterialCheckBox>(R.id.client_download_select_cb).isChecked = bean.downloadConfirm
         findViewById<TextView>(R.id.client_encode_value).text = bean.encode
-        findViewById<CheckBox>(R.id.client_passive_cb).isChecked = bean.passiveMode
+        findViewById<MaterialCheckBox>(R.id.client_passive_cb).isChecked = bean.passiveMode
         findViewById<TextView>(R.id.client_connect_timeout_value).text = "${bean.connectTimeout}${resources.getString(R.string.word_second)}"
+    }
+
+    private fun openDownloadDirectoryPicker() {
+        startActivityForResult(StorageAccessUtil.createOpenDocumentTreeIntent(bean.downloadTreeUri), REQUEST_DOWNLOAD_TREE)
     }
 
     private fun createAndShowAlertDialog(title: String, s: String, h: String, c: ((AlertDialog, String) -> Unit)) = createAlertDialogBuilder(title, s, h).create().apply {
@@ -257,7 +232,7 @@ abstract class ClientInfoActivity : BaseActivity() {
         }
     }
 
-    private fun createAlertDialogBuilder(title: String, s: String, h: String) = AlertDialog.Builder(this).apply {
+    private fun createAlertDialogBuilder(title: String, s: String, h: String) = MaterialAlertDialogBuilder(this).apply {
         setTitle(title)
         this.setView(LayoutInflater.from(this@ClientInfoActivity).inflate(R.layout.layout_with_edittext, null).apply {
             this.findViewById<EditText>(R.id.dialog_edittext).setText(s)

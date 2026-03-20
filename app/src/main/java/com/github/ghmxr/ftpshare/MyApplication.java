@@ -4,14 +4,11 @@ import android.app.Application;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
-import android.view.ViewConfiguration;
 
 import androidx.appcompat.app.AppCompatDelegate;
 
 import com.github.ghmxr.ftpshare.utils.CommonUtils;
 import com.github.ghmxr.ftpshare.utils.NetworkStatusMonitor;
-
-import java.lang.reflect.Field;
 
 public class MyApplication extends Application {
 
@@ -25,16 +22,6 @@ public class MyApplication extends Application {
     @Override
     public void onCreate() {
         myApplication = this;
-        try {
-            ViewConfiguration config = ViewConfiguration.get(this);
-            Field menuKeyField = ViewConfiguration.class.getDeclaredField("sHasPermanentMenuKey");
-            if (menuKeyField != null) {
-                menuKeyField.setAccessible(true);
-                menuKeyField.setBoolean(config, false);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
         super.onCreate();
         NetworkStatusMonitor.init(this);
         AppCompatDelegate.setDefaultNightMode(CommonUtils.getSettingSharedPreferences(this)

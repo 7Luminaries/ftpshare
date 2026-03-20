@@ -6,7 +6,6 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.CheckBox
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatDelegate
 import com.github.ghmxr.ftpshare.Constants
@@ -17,13 +16,14 @@ import com.github.ghmxr.ftpshare.ui.DisconnectSelectionDialog
 import com.github.ghmxr.ftpshare.ui.RadioSelectionDialog
 import com.github.ghmxr.ftpshare.ui.RadioSelectionDialog.ConfirmedCallback
 import com.github.ghmxr.ftpshare.utils.CommonUtils
+import com.google.android.material.checkbox.MaterialCheckBox
 
 class SettingFragment : androidx.fragment.app.Fragment() {
     private val settings = CommonUtils.getSettingSharedPreferences(MyApplication.getGlobalBaseContext())
     private val editor = settings.edit()
     private var resultCode = Activity.RESULT_CANCELED
     private val ACTIVITY_RESULT = "result_code"
-    private var cb_auto_start: CheckBox? = null
+    private var cb_auto_start: MaterialCheckBox? = null
     private var tv_disconnect: TextView? = null
     private var tv_night_mode: TextView? = null
     private var tv_language: TextView? = null
@@ -35,7 +35,7 @@ class SettingFragment : androidx.fragment.app.Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        cb_auto_start = view.findViewById<CheckBox>(R.id.setting_auto_start_cb)
+        cb_auto_start = view.findViewById<MaterialCheckBox>(R.id.setting_auto_start_cb)
         tv_disconnect = view.findViewById<TextView>(R.id.setting_disconnect_value)
         tv_night_mode = view.findViewById<TextView>(R.id.setting_night_mode_value)
         tv_language = view.findViewById<TextView>(R.id.setting_language_value)

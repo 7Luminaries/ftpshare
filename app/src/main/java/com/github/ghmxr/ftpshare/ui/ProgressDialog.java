@@ -11,9 +11,9 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.widget.AppCompatCheckBox;
 
 import com.github.ghmxr.ftpshare.R;
+import com.google.android.material.checkbox.MaterialCheckBox;
 
 import java.text.DecimalFormat;
 
@@ -32,7 +32,7 @@ public class ProgressDialog extends AlertDialog {
         att = dialog_view.findViewById(R.id.dialog_att);
         att_left = dialog_view.findViewById(R.id.dialog_att_left);
         att_right = dialog_view.findViewById(R.id.dialog_att_right);
-        ((AppCompatCheckBox) dialog_view.findViewById(R.id.dialog_progress_keep_on)).setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+        ((MaterialCheckBox) dialog_view.findViewById(R.id.dialog_progress_keep_on)).setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 try {

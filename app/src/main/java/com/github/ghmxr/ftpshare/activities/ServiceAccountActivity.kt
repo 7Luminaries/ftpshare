@@ -1,31 +1,32 @@
 package com.github.ghmxr.ftpshare.activities
 
-import android.Manifest
 import android.content.Intent
-import android.os.Build
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
-import android.widget.CheckBox
 import android.widget.ListView
 import android.widget.TextView
-import androidx.core.content.PermissionChecker
 import com.github.ghmxr.ftpshare.Constants
 import com.github.ghmxr.ftpshare.MyApplication
 import com.github.ghmxr.ftpshare.R
 import com.github.ghmxr.ftpshare.adapers.AccountListAdapter
 import com.github.ghmxr.ftpshare.services.FtpService
 import com.github.ghmxr.ftpshare.utils.CommonUtils
+import com.github.ghmxr.ftpshare.utils.StorageAccessUtil
+import com.google.android.material.checkbox.MaterialCheckBox
 
 class ServiceAccountActivity : BaseActivity() {
+    companion object {
+        private const val REQUEST_ANONYMOUS_TREE = 0
+    }
 
     private var viewGroup_anonymous: ViewGroup? = null
     private var accountListView: ListView? = null
     private var viewGroup_no_account: ViewGroup? = null
     private var anonymous_path: TextView? = null
-    private var writable_cb: CheckBox? = null
+    private var writable_cb: MaterialCheckBox? = null
     private var menu: Menu? = null
 
     private val settings = CommonUtils.getSettingSharedPreferences(MyApplication.getGlobalBaseContext())
@@ -39,7 +40,7 @@ class ServiceAccountActivity : BaseActivity() {
         viewGroup_anonymous = findViewById<ViewGroup>(R.id.mode_anonymous)
         accountListView = findViewById<ListView>(R.id.view_user_list)
         anonymous_path = findViewById<TextView>(R.id.mode_anonymous_value)
-        writable_cb = findViewById<CheckBox>(R.id.anonymous_writable_cb)
+        writable_cb = findViewById<MaterialCheckBox>(R.id.anonymous_writable_cb)
         viewGroup_no_account = findViewById<ViewGroup>(R.id.add_user_att)
 
         findViewById<View>(R.id.anonymous_path).setOnClickListener(this::onClick)
@@ -54,28 +55,15 @@ class ServiceAccountActivity : BaseActivity() {
                     CommonUtils.showSnackBarOfFtpServiceIsRunning(this)
                     return
                 }
-                if (Build.VERSION.SDK_INT >= 23 && PermissionChecker.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PermissionChecker.PERMISSION_GRANTED) {
-                    CommonUtils.showSnackBarOfRequestingWritingPermission(this)
-                    requestPermissions(arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE), 0)
-                    return
-                }
-                /*val activity: Activity = this
-                val dialog = DialogOfFolderSelector(activity, settings.getString(Constants.PreferenceConsts.ANONYMOUS_MODE_PATH, Constants.PreferenceConsts.ANONYMOUS_MODE_PATH_DEFAULT).toString())
-                dialog.show()
-                dialog.setOnFolderSelectorDialogConfirmedListener(OnFolderSelectorDialogConfirmed { path ->
-                    if (FtpService.isFTPServiceRunning()) {
-                        Toast.makeText(activity, resources.getString(R.string.attention_ftp_is_running), Toast.LENGTH_SHORT).show()
-                        return@OnFolderSelectorDialogConfirmed
-                    }
-                    editor.putString(Constants.PreferenceConsts.ANONYMOUS_MODE_PATH, path)
-                    editor.apply()
-                    anonymous_path!!.text = path
-                })*/
-
-                Intent(this, FolderSelectorActivity::class.java).apply {
-                    putExtra(FolderSelectorActivity.EXTRA_CURRENT_PATH, settings.getString(Constants.PreferenceConsts.ANONYMOUS_MODE_PATH, Constants.PreferenceConsts.ANONYMOUS_MODE_PATH_DEFAULT))
-                    startActivityForResult(this, 0)
-                }
+                startActivityForResult(
+                    StorageAccessUtil.createOpenDocumentTreeIntent(
+                        settings.getString(
+                            Constants.PreferenceConsts.ANONYMOUS_MODE_TREE_URI,
+                            Constants.PreferenceConsts.ANONYMOUS_MODE_TREE_URI_DEFAULT
+                        )
+                    ),
+                    REQUEST_ANONYMOUS_TREE
+                )
             }
             R.id.anonymous_writable -> {
                 if (FtpService.isFTPServiceRunning()) {
@@ -138,7 +126,11 @@ class ServiceAccountActivity : BaseActivity() {
     }
 
     private fun refreshContents() {
-        anonymous_path?.text = settings.getString(Constants.PreferenceConsts.ANONYMOUS_MODE_PATH, Constants.PreferenceConsts.ANONYMOUS_MODE_PATH_DEFAULT)
+        anonymous_path?.text = StorageAccessUtil.getDirectorySummary(
+            this,
+            settings.getString(Constants.PreferenceConsts.ANONYMOUS_MODE_TREE_URI, Constants.PreferenceConsts.ANONYMOUS_MODE_TREE_URI_DEFAULT),
+            settings.getString(Constants.PreferenceConsts.ANONYMOUS_MODE_PATH, Constants.PreferenceConsts.ANONYMOUS_MODE_PATH_DEFAULT)
+        )
         writable_cb?.isChecked = settings.getBoolean(Constants.PreferenceConsts.ANONYMOUS_MODE_WRITABLE, Constants.PreferenceConsts.ANONYMOUS_MODE_WRITABLE_DEFAULT)
         val accountListAdapter = AccountListAdapter(this, accountListView!!)
         accountListView?.adapter = accountListAdapter
@@ -149,11 +141,12 @@ class ServiceAccountActivity : BaseActivity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == 0 && resultCode == RESULT_OK) {
-            data?.getStringExtra(FolderSelectorActivity.EXTRA_SELECTED_PATH)?.let {
-                editor.putString(Constants.PreferenceConsts.ANONYMOUS_MODE_PATH, it)
+        if (requestCode == REQUEST_ANONYMOUS_TREE && resultCode == RESULT_OK) {
+            data?.data?.let {
+                StorageAccessUtil.persistTreePermission(this, it, data.flags)
+                editor.putString(Constants.PreferenceConsts.ANONYMOUS_MODE_TREE_URI, it.toString())
+                editor.putString(Constants.PreferenceConsts.ANONYMOUS_MODE_PATH, "")
                 editor.apply()
-                anonymous_path?.text = it
             }
         }
         refreshContents()

@@ -2,15 +2,14 @@ package com.github.ghmxr.ftpshare.utils;
 
 import android.content.Context;
 import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
-import android.net.wifi.WifiManager;
-import android.text.format.Formatter;
+import android.net.LinkAddress;
+import android.net.LinkProperties;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
@@ -18,23 +17,6 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 
 public class NetworkEnvironmentUtil {
-
-    /**
-     * 反射拿热点是否开启
-     */
-    public static boolean isAPEnabled(Context context) {
-        try {
-            WifiManager wifiManager = (WifiManager) context.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-            Method method = wifiManager.getClass().getDeclaredMethod("getWifiApState");
-            Field field = wifiManager.getClass().getDeclaredField("WIFI_AP_STATE_ENABLED");
-            int value_wifi_enabled = (int) field.get(wifiManager);
-            return ((int) method.invoke(wifiManager)) == value_wifi_enabled;
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return false;
-    }
-
     /**
      * 获取WiFi网络的IPv4地址
      *
@@ -42,13 +24,7 @@ public class NetworkEnvironmentUtil {
      */
     public static @Nullable
     String getWifiIp(@NonNull Context context) {
-        try {
-            return Formatter.formatIpAddress(((WifiManager) context.getApplicationContext().getSystemService(Context.WIFI_SERVICE))
-                    .getConnectionInfo().getIpAddress());
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return null;
+        return getIpv4AddressForTransport(context, NetworkCapabilities.TRANSPORT_WIFI);
     }
 
     /**
@@ -82,21 +58,47 @@ public class NetworkEnvironmentUtil {
     }
 
     public static boolean isWifiConnected(@NonNull Context context) {
-        return isNetworkConnected(context, ConnectivityManager.TYPE_WIFI);
+        return hasTransportOnActiveNetwork(context, NetworkCapabilities.TRANSPORT_WIFI);
     }
 
     static boolean isCellularNetworkConnected(@NonNull Context context) {
-        return isNetworkConnected(context, ConnectivityManager.TYPE_MOBILE);
+        return hasTransportOnActiveNetwork(context, NetworkCapabilities.TRANSPORT_CELLULAR);
     }
 
-    private static boolean isNetworkConnected(@NonNull Context context, int type) {
+    private static boolean hasTransportOnActiveNetwork(@NonNull Context context, int transport) {
         try {
-            ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
-            NetworkInfo networkInfo = connectivityManager.getActiveNetworkInfo();
-            return networkInfo != null && networkInfo.getType() == type;
+            ConnectivityManager connectivityManager = (ConnectivityManager) context.getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+            if (connectivityManager == null) return false;
+            Network activeNetwork = connectivityManager.getActiveNetwork();
+            if (activeNetwork == null) return false;
+            NetworkCapabilities capabilities = connectivityManager.getNetworkCapabilities(activeNetwork);
+            return capabilities != null && capabilities.hasTransport(transport);
         } catch (Exception e) {
             e.printStackTrace();
         }
         return false;
+    }
+
+    private static @Nullable
+    String getIpv4AddressForTransport(@NonNull Context context, int transport) {
+        try {
+            ConnectivityManager connectivityManager = (ConnectivityManager) context.getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+            if (connectivityManager == null) return null;
+            Network activeNetwork = connectivityManager.getActiveNetwork();
+            if (activeNetwork == null) return null;
+            NetworkCapabilities capabilities = connectivityManager.getNetworkCapabilities(activeNetwork);
+            if (capabilities == null || !capabilities.hasTransport(transport)) return null;
+            LinkProperties linkProperties = connectivityManager.getLinkProperties(activeNetwork);
+            if (linkProperties == null) return null;
+            for (LinkAddress linkAddress : linkProperties.getLinkAddresses()) {
+                InetAddress address = linkAddress.getAddress();
+                if (address instanceof Inet4Address && !address.isLoopbackAddress()) {
+                    return address.getHostAddress();
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 }

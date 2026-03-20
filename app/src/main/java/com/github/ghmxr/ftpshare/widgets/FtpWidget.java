@@ -62,9 +62,9 @@ public class FtpWidget extends AppWidgetProvider implements FtpService.OnFTPServ
         remoteViews.setOnClickPendingIntent(R.id.widget_switch_area,
                 PendingIntent.getBroadcast(context,
                         1,
-                        new Intent(context, FtpWidgetReceiver.class), PendingIntent.FLAG_UPDATE_CURRENT));
+                        new Intent(context, FtpWidgetReceiver.class), getPendingIntentFlags()));
         remoteViews.setOnClickPendingIntent(R.id.widget_switch_root,
-                PendingIntent.getActivity(context, 2, new Intent(context, MainActivity.class), PendingIntent.FLAG_UPDATE_CURRENT));
+                PendingIntent.getActivity(context, 2, new Intent(context, MainActivity.class), getPendingIntentFlags()));
         return remoteViews;
     }
 
@@ -81,6 +81,13 @@ public class FtpWidget extends AppWidgetProvider implements FtpService.OnFTPServ
             if (b) FtpService.stopService();
             else FtpService.startService(context);
         }
+    }
+
+    private int getPendingIntentFlags() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            return PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE;
+        }
+        return PendingIntent.FLAG_UPDATE_CURRENT;
     }
 
 }

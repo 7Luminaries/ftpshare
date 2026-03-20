@@ -1,10 +1,7 @@
 package com.github.ghmxr.ftpshare.activities;
 
-import android.Manifest;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.text.method.PasswordTransformationMethod;
 import android.text.method.SingleLineTransformationMethod;
@@ -12,26 +9,28 @@ import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
-import androidx.core.content.PermissionChecker;
 
 import com.github.ghmxr.ftpshare.Constants;
 import com.github.ghmxr.ftpshare.R;
 import com.github.ghmxr.ftpshare.data.AccountItem;
 import com.github.ghmxr.ftpshare.services.FtpService;
 import com.github.ghmxr.ftpshare.utils.MySQLiteOpenHelper;
+import com.github.ghmxr.ftpshare.utils.StorageAccessUtil;
+import com.google.android.material.checkbox.MaterialCheckBox;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.snackbar.Snackbar;
 
 public abstract class AccountActivity extends BaseActivity {
+    private static final int REQUEST_SHARED_TREE = 0;
     public AccountItem item;
     public TextView tv_account, tv_password, tv_path;
-    public CheckBox cb_writable;
+    public MaterialCheckBox cb_writable;
     String checkString;
     long first_clicked_back = 0;
 
@@ -54,7 +53,7 @@ public abstract class AccountActivity extends BaseActivity {
             checkString = item.toString();
             tv_account.setText(item.account);
             tv_password.setText(getPasswordDisplayValue(item.password));
-            tv_path.setText(item.path);
+            tv_path.setText(StorageAccessUtil.getDirectorySummary(this, item.treeUri, item.path));
             cb_writable.setChecked(item.writable);
 
             findViewById(R.id.account_user).setOnClickListener(new View.OnClickListener() {
@@ -64,7 +63,7 @@ public abstract class AccountActivity extends BaseActivity {
                     final EditText editText = dialogView.findViewById(R.id.dialog_edittext);
                     editText.setText(item.account);
                     editText.setHint(getResources().getString(R.string.account_user_dialog_edittext_hint));
-                    final AlertDialog dialog = new AlertDialog.Builder(AccountActivity.this)
+                    final AlertDialog dialog = new MaterialAlertDialogBuilder(AccountActivity.this)
                             .setTitle(getResources().getString(R.string.account_user_dialog_title))
                             .setView(dialogView)
                             .setPositiveButton(getResources().getString(R.string.dialog_button_confirm), null)
@@ -95,7 +94,7 @@ public abstract class AccountActivity extends BaseActivity {
                     editText.setTransformationMethod(PasswordTransformationMethod.getInstance());
                     editText.setTag(true);
                     editText.setHint(getResources().getString(R.string.account_password_dialog_edittext_hint));
-                    final AlertDialog dialog = new AlertDialog.Builder(AccountActivity.this)
+                    final AlertDialog dialog = new MaterialAlertDialogBuilder(AccountActivity.this)
                             .setTitle(getResources().getString(R.string.account_password_dialog_title))
                             .setView(dialogView)
                             .setPositiveButton(getResources().getString(R.string.dialog_button_confirm), null)
@@ -132,40 +131,15 @@ public abstract class AccountActivity extends BaseActivity {
             findViewById(R.id.account_path).setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    if (Build.VERSION.SDK_INT >= 23 && PermissionChecker.checkSelfPermission(AccountActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PermissionChecker.PERMISSION_GRANTED) {
-                        Snackbar snackbar = Snackbar.make(findViewById(android.R.id.content), getResources().getString(R.string.permission_write_external), Snackbar.LENGTH_SHORT);
-                        snackbar.setAction(getResources().getString(R.string.snackbar_action_goto), new View.OnClickListener() {
-                            @Override
-                            public void onClick(View v) {
-                                Intent appdetail = new Intent();
-                                appdetail.setAction(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-                                appdetail.setData(Uri.fromParts("package", getApplication().getPackageName(), null));
-                                startActivity(appdetail);
-                            }
-                        });
-                        snackbar.show();
-                        requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 0);
-                        return;
-                    }
-                   /*DialogOfFolderSelector dialog=new DialogOfFolderSelector(AccountActivity.this,item.path);
-                   dialog.show();
-                   dialog.setOnFolderSelectorDialogConfirmedListener(new DialogOfFolderSelector.OnFolderSelectorDialogConfirmed() {
-                       @Override
-                       public void onFolderSelectorDialogConfirmed(String path) {
-                           item.path=path;
-                           ((TextView)findViewById(R.id.account_path_value)).setText(path);
-                       }
-                   });*/
-                    Intent intent = new Intent(AccountActivity.this, FolderSelectorActivity.class);
-                    intent.putExtra(FolderSelectorActivity.getEXTRA_CURRENT_PATH(), item.path);
-                    startActivityForResult(intent, 0);
+                    Intent intent = StorageAccessUtil.createOpenDocumentTreeIntent(item.treeUri);
+                    startActivityForResult(intent, REQUEST_SHARED_TREE);
                 }
             });
 
             findViewById(R.id.account_writable).setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    CheckBox cb = findViewById(R.id.account_writable_cb);
+                    MaterialCheckBox cb = findViewById(R.id.account_writable_cb);
                     cb.toggle();
                     item.writable = cb.isChecked();
                 }
@@ -191,10 +165,11 @@ public abstract class AccountActivity extends BaseActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == 0 && resultCode == RESULT_OK && data != null) {
-            final String path = data.getStringExtra(FolderSelectorActivity.getEXTRA_SELECTED_PATH());
-            item.path = path;
-            ((TextView) findViewById(R.id.account_path_value)).setText(path);
+        if (requestCode == REQUEST_SHARED_TREE && resultCode == RESULT_OK && data != null && data.getData() != null) {
+            StorageAccessUtil.persistTreePermission(this, data.getData(), data.getFlags());
+            item.treeUri = data.getData().toString();
+            item.path = "";
+            tv_path.setText(StorageAccessUtil.getDirectorySummary(this, item.treeUri, item.path));
         }
     }
 
@@ -229,6 +204,17 @@ public abstract class AccountActivity extends BaseActivity {
         }
         if (this.item.account.equals(Constants.FTPConsts.NAME_ANONYMOUS)) {
             Snackbar.make(findViewById(android.R.id.content), getResources().getString(R.string.account_anonymous_name_set_att), Snackbar.LENGTH_SHORT).show();
+            return -1;
+        }
+        if (item.treeUri == null || item.treeUri.trim().length() == 0) {
+            Snackbar.make(findViewById(android.R.id.content),
+                    getResources().getString(item.path == null || item.path.trim().length() == 0
+                            ? R.string.storage_directory_not_selected
+                            : R.string.storage_directory_migration_needed), Snackbar.LENGTH_SHORT).show();
+            return -1;
+        }
+        if (!StorageAccessUtil.canAccessTree(this, item.treeUri)) {
+            Snackbar.make(findViewById(android.R.id.content), getResources().getString(R.string.storage_directory_permission_lost), Snackbar.LENGTH_SHORT).show();
             return -1;
         }
         for (AccountItem check : FtpService.getUserAccountList(this)) {

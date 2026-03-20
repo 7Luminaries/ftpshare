@@ -107,9 +107,16 @@ public class MyTileService extends TileService implements FtpService.OnFTPServic
                 .setContentText(String.valueOf(content))
                 .setAutoCancel(true)
                 .setOngoing(false)
-                .setContentIntent(PendingIntent.getActivity(this, 1, new Intent(this, MainActivity.class), PendingIntent.FLAG_UPDATE_CURRENT))
+                .setContentIntent(PendingIntent.getActivity(this, 1, new Intent(this, MainActivity.class), getPendingIntentFlags()))
                 .build();
         notificationManager.notify(2, notification);
+    }
+
+    private int getPendingIntentFlags() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            return PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE;
+        }
+        return PendingIntent.FLAG_UPDATE_CURRENT;
     }
 
     /*

@@ -1,9 +1,12 @@
 package com.github.ghmxr.ftpshare.activities;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -27,6 +30,7 @@ import com.github.ghmxr.ftpshare.fragments.SettingFragment;
 import com.github.ghmxr.ftpshare.services.FtpService;
 import com.github.ghmxr.ftpshare.utils.CommonUtils;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +38,7 @@ import java.util.List;
 public class MainActivity extends BaseActivity implements FtpService.OnFTPServiceStatusChangedListener {
 
     public static final String STATE_CURRENT_TAB = "current_tab";
+    private static final int REQUEST_POST_NOTIFICATIONS = 1001;
     public static MainActivity mainActivity;
 
     /*private static final int MENU_ACCOUNT_ADD =0;
@@ -64,6 +69,7 @@ public class MainActivity extends BaseActivity implements FtpService.OnFTPServic
         }
         mainActivity = this;
         setContentView(R.layout.activity_main);
+        requestNotificationPermissionIfNeeded();
         FtpService.addOnFtpServiceStatusChangedListener(this);
         navigation = findViewById(R.id.navigation);
         disconnect_viewgroup = findViewById(R.id.main_count);
@@ -327,7 +333,7 @@ public class MainActivity extends BaseActivity implements FtpService.OnFTPServic
                     }
                 }
             });
-            new AlertDialog.Builder(this)
+            new MaterialAlertDialogBuilder(this)
                     .setTitle(CommonUtils.getAppName(this) + "(" + CommonUtils.getAppVersionName(this) + ")")
                     .setView(dialogView)
                     .setPositiveButton(getResources().getString(R.string.dialog_button_confirm), new DialogInterface.OnClickListener() {
@@ -346,5 +352,24 @@ public class MainActivity extends BaseActivity implements FtpService.OnFTPServic
         super.onDestroy();
         mainActivity = null;
         FtpService.removeOnFtpServiceStatusChangedListener(this);
+    }
+
+    private void requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            return;
+        }
+        if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        if (CommonUtils.getSettingSharedPreferences(this).getBoolean(
+                Constants.PreferenceConsts.NOTIFICATION_PERMISSION_REQUESTED,
+                Constants.PreferenceConsts.NOTIFICATION_PERMISSION_REQUESTED_DEFAULT)) {
+            return;
+        }
+        CommonUtils.getSettingSharedPreferences(this)
+                .edit()
+                .putBoolean(Constants.PreferenceConsts.NOTIFICATION_PERMISSION_REQUESTED, true)
+                .apply();
+        requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQUEST_POST_NOTIFICATIONS);
     }
 }

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="60dp"
@@ -63,7 +64,7 @@
             android:textSize="15sp"
             tools:text="100MB" />
 
-        <CheckBox
+        <com.google.android.material.checkbox.MaterialCheckBox
             android:id="@+id/item_ftp_file_cb"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -72,6 +73,7 @@
             android:layout_marginRight="20dp"
             android:clickable="false"
             android:visibility="gone"
+            app:useMaterialThemeColors="true"
             tools:visibility="visible" />
 
         <ImageView
@@ -90,6 +92,6 @@
         android:layout_width="match_parent"
         android:layout_height="1px"
         android:layout_alignParentBottom="true"
-        android:background="#dddddd" />
+        android:background="@color/color_dividing_line" />
 
 </RelativeLayout>

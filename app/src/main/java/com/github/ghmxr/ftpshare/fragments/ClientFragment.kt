@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.drawable.ColorDrawable
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -24,6 +25,7 @@ import com.github.ghmxr.ftpshare.adapers.ViewHolder
 import com.github.ghmxr.ftpshare.data.ClientBean
 import com.github.ghmxr.ftpshare.ftpclient.FtpClientManager
 import com.github.ghmxr.ftpshare.utils.CommonUtils
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import java.util.*
 
@@ -35,6 +37,7 @@ class ClientFragment : androidx.fragment.app.Fragment() {
     private var sharingUris: List<Uri>? = null
 
     private var noClientView: View? = null
+    private var receiverContext: Context? = null
 
     companion object {
         @JvmStatic
@@ -51,7 +54,9 @@ class ClientFragment : androidx.fragment.app.Fragment() {
         super.onCreate(savedInstanceState)
         context?.let {
             try {
-                it.registerReceiver(refreshListReceiver, IntentFilter(ACTION_REFRESH_LIST))
+                val appContext = it.applicationContext
+                registerReceiverCompat(appContext, refreshListReceiver, IntentFilter(ACTION_REFRESH_LIST))
+                receiverContext = appContext
             } catch (e: Exception) {
             }
         }
@@ -86,7 +91,7 @@ class ClientFragment : androidx.fragment.app.Fragment() {
                             }
                         }
                         contentView?.findViewById<View>(R.id.popup_delete)?.setOnClickListener {
-                            AlertDialog.Builder(context!!)
+                            MaterialAlertDialogBuilder(context!!)
                                     .setTitle(context!!.resources.getString(R.string.client_delete_confirm_head))
                                     .setMessage(String.format(context!!.resources.getString(R.string.client_delete_confirm_content), b.nickName))
                                     .setPositiveButton(context!!.resources.getString(R.string.dialog_button_confirm)) { dialog, which ->
@@ -178,12 +183,13 @@ class ClientFragment : androidx.fragment.app.Fragment() {
 
     override fun onDestroy() {
         super.onDestroy()
-        context?.let {
+        receiverContext?.let {
             try {
                 it.unregisterReceiver(refreshListReceiver)
             } catch (e: Exception) {
             }
         }
+        receiverContext = null
     }
 
     fun setSharingUriAndView(uris: List<Uri>) {
@@ -193,6 +199,14 @@ class ClientFragment : androidx.fragment.app.Fragment() {
     private fun refreshNoClientAtt() {
         noClientView?.let {
             it.visibility = if (FtpClientManager.instance.getClientBeanSize() > 0) View.GONE else View.VISIBLE
+        }
+    }
+
+    private fun registerReceiverCompat(context: Context, receiver: BroadcastReceiver, filter: IntentFilter) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            context.registerReceiver(receiver, filter)
         }
     }
 }
