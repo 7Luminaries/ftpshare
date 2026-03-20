@@ -1,15 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    app:cardCornerRadius="10dp"
-    app:cardElevation="3dp">
+    app:cardBackgroundColor="@color/colorSurface"
+    app:cardCornerRadius="20dp"
+    app:cardElevation="4dp"
+    app:strokeColor="@color/colorOutlineVariant"
+    app:strokeWidth="1dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:paddingStart="8dp"
+        android:paddingTop="6dp"
+        android:paddingEnd="4dp"
+        android:paddingBottom="6dp"
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
@@ -17,7 +24,7 @@
             android:id="@+id/layout_disconnect_icon"
             android:layout_width="25dp"
             android:layout_height="25dp"
-            android:layout_margin="5dp"
+            android:layout_margin="6dp"
             tools:src="@drawable/icon_alarm" />
 
         <LinearLayout
@@ -46,16 +53,17 @@
         <RelativeLayout
             android:id="@+id/layout_disconnection_cancel"
             android:layout_width="50dp"
-            android:layout_height="30dp">
+            android:layout_height="36dp"
+            android:background="?attr/selectableItemBackgroundBorderless">
 
             <ImageView
                 android:layout_width="15dp"
                 android:layout_height="15dp"
                 android:layout_alignParentRight="true"
                 android:layout_centerVertical="true"
-                android:layout_marginRight="10dp"
+                android:layout_marginRight="12dp"
                 android:src="@drawable/icon_close" />
         </RelativeLayout>
 
     </LinearLayout>
-</androidx.cardview.widget.CardView>
+</com.google.android.material.card.MaterialCardView>

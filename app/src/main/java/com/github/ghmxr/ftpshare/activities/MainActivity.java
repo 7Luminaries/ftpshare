@@ -1,6 +1,7 @@
 package com.github.ghmxr.ftpshare.activities;
 
 import android.Manifest;
+import android.content.res.ColorStateList;
 import android.app.Activity;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -8,6 +9,7 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -21,6 +23,10 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
+import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import com.github.ghmxr.ftpshare.Constants;
 import com.github.ghmxr.ftpshare.R;
@@ -31,6 +37,8 @@ import com.github.ghmxr.ftpshare.services.FtpService;
 import com.github.ghmxr.ftpshare.utils.CommonUtils;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.navigation.NavigationBarView;
+import com.google.android.material.shape.ShapeAppearanceModel;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -75,7 +83,9 @@ public class MainActivity extends BaseActivity implements FtpService.OnFTPServic
         disconnect_viewgroup = findViewById(R.id.main_count);
         disconnect_icon = findViewById(R.id.layout_disconnect_icon);
         disconnect_tv_value = findViewById(R.id.layout_disconnect_value);
-        navigation.setOnNavigationItemSelectedListener(new BottomNavigationView.OnNavigationItemSelectedListener() {
+        setupNavigationBar();
+        applyWindowInsets();
+        navigation.setOnItemSelectedListener(new NavigationBarView.OnItemSelectedListener() {
             @Override
             public boolean onNavigationItemSelected(@NonNull MenuItem item) {
                 if (R.id.navigation_main == item.getItemId()) {
@@ -113,6 +123,48 @@ public class MainActivity extends BaseActivity implements FtpService.OnFTPServic
         }
 
         checkAndShowUploadIntent(getIntent());
+    }
+
+    private void setupNavigationBar() {
+        navigation.setItemActiveIndicatorEnabled(true);
+        navigation.setItemActiveIndicatorColor(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.colorPrimaryContainer)));
+        navigation.setItemActiveIndicatorHeight(dpToPx(32));
+        navigation.setItemActiveIndicatorWidth(dpToPx(64));
+        navigation.setItemActiveIndicatorMarginHorizontal(dpToPx(12));
+        navigation.setItemActiveIndicatorShapeAppearance(
+                ShapeAppearanceModel.builder().setAllCornerSizes(dpToPx(16)).build()
+        );
+    }
+
+    private void applyWindowInsets() {
+        final View root = findViewById(R.id.main_root);
+        final int navPaddingLeft = navigation.getPaddingLeft();
+        final int navPaddingTop = navigation.getPaddingTop();
+        final int navPaddingRight = navigation.getPaddingRight();
+        final int navPaddingBottom = navigation.getPaddingBottom();
+        final ViewGroup.MarginLayoutParams disconnectLayoutParams =
+                (ViewGroup.MarginLayoutParams) disconnect_viewgroup.getLayoutParams();
+        final int disconnectMarginLeft = disconnectLayoutParams.leftMargin;
+        final int disconnectMarginRight = disconnectLayoutParams.rightMargin;
+
+        ViewCompat.setOnApplyWindowInsetsListener(root, new androidx.core.view.OnApplyWindowInsetsListener() {
+            @NonNull
+            @Override
+            public WindowInsetsCompat onApplyWindowInsets(View v, @NonNull WindowInsetsCompat insets) {
+                Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+                navigation.setPadding(
+                        navPaddingLeft + systemBars.left,
+                        navPaddingTop,
+                        navPaddingRight + systemBars.right,
+                        navPaddingBottom + systemBars.bottom
+                );
+                disconnectLayoutParams.leftMargin = disconnectMarginLeft + systemBars.left;
+                disconnectLayoutParams.rightMargin = disconnectMarginRight + systemBars.right;
+                disconnect_viewgroup.setLayoutParams(disconnectLayoutParams);
+                return insets;
+            }
+        });
+        ViewCompat.requestApplyInsets(root);
     }
 
     private void setBottomNavAndTab(int current_tab) {
@@ -371,5 +423,9 @@ public class MainActivity extends BaseActivity implements FtpService.OnFTPServic
                 .putBoolean(Constants.PreferenceConsts.NOTIFICATION_PERMISSION_REQUESTED, true)
                 .apply();
         requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQUEST_POST_NOTIFICATIONS);
+    }
+
+    private int dpToPx(int dp) {
+        return Math.round(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp, getResources().getDisplayMetrics()));
     }
 }

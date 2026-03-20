@@ -6,7 +6,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
-import android.widget.ProgressBar
 import android.widget.TextView
 import com.github.ghmxr.ftpshare.R
 import com.github.ghmxr.ftpshare.data.ClientBean
@@ -57,7 +56,7 @@ class FtpClientListAdapter(private val context: Context, private val c: ItemCall
 
 class ViewHolder(v: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(v) {
     val iconStatus: ImageView = v.findViewById(R.id.item_server_status)
-    val progressBar: ProgressBar = v.findViewById(R.id.item_server_progress)
+    val progressBar: View = v.findViewById(R.id.item_server_progress)
     val tvName: TextView = v.findViewById(R.id.item_server_name)
     val tvAddress: TextView = v.findViewById(R.id.item_server_address)
     val tvAction: TextView = v.findViewById(R.id.item_server_action)
